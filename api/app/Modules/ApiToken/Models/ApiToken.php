@@ -21,6 +21,7 @@ class ApiToken extends Model
         'token_hash',
         'last_used_at',
         'expires_at',
+        'permissions',
     ];
 
     protected $hidden = [
@@ -32,7 +33,31 @@ class ApiToken extends Model
         return [
             'last_used_at' => 'datetime',
             'expires_at' => 'datetime',
+            'permissions' => 'array',
         ];
+    }
+
+    /**
+     * Retorna os escopos do token. Se null, acesso irrestrito (full access).
+     *
+     * @return list<string>|null
+     */
+    public function scopes(): ?array
+    {
+        return $this->permissions;
+    }
+
+    /**
+     * Verifica se o token possui uma permissão específica.
+     * Permissões nulas (null) representam acesso total.
+     */
+    public function can(string $permission): bool
+    {
+        if ($this->permissions === null) {
+            return true;
+        }
+
+        return in_array($permission, $this->permissions, true);
     }
 
     public function isExpired(): bool

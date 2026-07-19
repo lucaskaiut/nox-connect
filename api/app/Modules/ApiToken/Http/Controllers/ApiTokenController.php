@@ -22,10 +22,12 @@ class ApiTokenController extends ApiController
     public function store(StoreApiTokenRequest $request): JsonResponse
     {
         $expiresAt = $request->validated('expires_at');
+        $permissions = $request->validated('permissions');
 
         $issued = $this->service->issue(
             $request->validated('name'),
             $expiresAt !== null ? Carbon::parse($expiresAt) : null,
+            $permissions !== null ? $permissions : null,
         );
 
         return $this->created([

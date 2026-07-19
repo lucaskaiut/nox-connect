@@ -3,6 +3,7 @@
 namespace App\Modules\ACL\Http\Middleware;
 
 use App\Modules\ACL\Enums\Permission;
+use App\Modules\ApiToken\Models\ApiToken;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -18,11 +19,8 @@ class EnsurePermission
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
+        $apiToken = $request->attributes->get('api_token');
         $user = $request->user();
-
-        if ($user === null) {
-            throw new AuthenticationException;
-        }
 
         $enum = Permission::tryFrom($permission);
 
@@ -30,10 +28,22 @@ class EnsurePermission
             throw new InvalidArgumentException("Permissão desconhecida [{$permission}].");
         }
 
-        if (! $user->hasPermission($enum)) {
-            throw new AuthorizationException('Você não possui permissão para executar esta ação.');
+        if ($apiToken instanceof ApiToken) {
+            if (! $apiToken->can($permission)) {
+                throw new AuthorizationException('Este token não possui escopo para executar esta ação.');
+            }
+
+            return $next($request);
         }
 
-        return $next($request);
+        if ($user !== null) {
+            if (! $user->hasPermission($enum)) {
+                throw new AuthorizationException('Você não possui permissão para executar esta ação.');
+            }
+
+            return $next($request);
+        }
+
+        throw new AuthenticationException;
     }
 }

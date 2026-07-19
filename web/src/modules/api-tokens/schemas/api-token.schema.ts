@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Permission } from '@/shared/constants/permissions'
 
 export const EXPIRATION_OPTIONS = [
   { value: 'never', label: 'Nunca expira', description: 'O token permanece válido até ser revogado.' },
@@ -6,9 +7,12 @@ export const EXPIRATION_OPTIONS = [
   { value: '90', label: '90 dias', description: 'Expira automaticamente em 90 dias.' },
 ] as const
 
+const permissionValues = Object.values(Permission) as [Permission, ...Permission[]]
+
 export const apiTokenSchema = z.object({
   name: z.string().min(1, 'Informe um nome para identificar o token'),
   expiration: z.enum(['never', '30', '90']),
+  permissions: z.array(z.enum(permissionValues)),
 })
 
 export type ApiTokenFormValues = z.infer<typeof apiTokenSchema>

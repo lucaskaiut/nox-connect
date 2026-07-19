@@ -12,10 +12,12 @@ import {
   PageContent,
   PageHeader,
   RadioGroupField,
+  Section,
   TextField,
 } from '@/shared/design-system'
 import { isApiError } from '@/shared/api/errors'
 import { applyApiErrorsToForm } from '@/shared/utils/forms'
+import { PermissionsField } from '@/modules/roles/components/PermissionsField'
 import { useCreateApiToken } from '../hooks/useApiTokens'
 import {
   apiTokenSchema,
@@ -32,7 +34,7 @@ export default function ApiTokenCreatePage() {
 
   const form = useForm<ApiTokenFormValues>({
     resolver: zodResolver(apiTokenSchema),
-    defaultValues: { name: '', expiration: 'never' },
+    defaultValues: { name: '', expiration: 'never', permissions: [] },
   })
 
   const onSubmit = async (values: ApiTokenFormValues) => {
@@ -40,6 +42,7 @@ export default function ApiTokenCreatePage() {
       const issued = await createToken.mutateAsync({
         name: values.name,
         expires_at: resolveExpiresAt(values.expiration),
+        permissions: values.permissions.length > 0 ? values.permissions : null,
       })
 
       setIssuedToken(issued.token)
@@ -65,21 +68,33 @@ export default function ApiTokenCreatePage() {
       <PageContent>
         <Card>
           <CardContent>
-            <Form form={form} onSubmit={onSubmit} className="space-y-6">
-              <TextField
-                name="name"
-                label="Nome do token"
-                placeholder="Ex.: Integração ERP"
-                hint="Use um nome que identifique onde o token será utilizado."
-                required
-              />
+            <Form form={form} onSubmit={onSubmit} className="space-y-8">
+              <Section title="Identificação e expiração">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField
+                    name="name"
+                    label="Nome do token"
+                    placeholder="Ex.: Integração ERP"
+                    hint="Use um nome que identifique onde o token será utilizado."
+                    required
+                    className="sm:col-span-2"
+                  />
+                  <RadioGroupField
+                    name="expiration"
+                    label="Expiração"
+                    options={[...EXPIRATION_OPTIONS]}
+                    required
+                    className="sm:col-span-2"
+                  />
+                </div>
+              </Section>
 
-              <RadioGroupField
-                name="expiration"
-                label="Expiração"
-                options={[...EXPIRATION_OPTIONS]}
-                required
-              />
+              <Section
+                title="Permissões (escopos)"
+                description="Se nenhuma permissão for selecionada, o token terá acesso irrestrito."
+              >
+                <PermissionsField name="permissions" />
+              </Section>
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <ButtonLink to="/api-tokens" variant="secondary">

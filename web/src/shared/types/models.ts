@@ -33,6 +33,7 @@ export interface Tenant {
 export interface ApiToken {
   id: number
   name: string
+  permissions: string[] | null
   last_used_at: string | null
   expires_at: string | null
   created_at: string | null

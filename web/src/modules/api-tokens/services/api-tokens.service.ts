@@ -5,6 +5,7 @@ import type { ApiToken } from '@/shared/types/models'
 export interface ApiTokenPayload {
   name: string
   expires_at?: string | null
+  permissions?: string[] | null
 }
 
 export interface IssuedApiToken {

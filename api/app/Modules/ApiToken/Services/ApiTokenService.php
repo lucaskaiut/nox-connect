@@ -5,6 +5,7 @@ namespace App\Modules\ApiToken\Services;
 use App\Modules\ApiToken\DTOs\IssuedApiToken;
 use App\Modules\ApiToken\Models\ApiToken;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,10 @@ class ApiTokenService
         return ApiToken::query()->latest()->get();
     }
 
-    public function issue(string $name, ?Carbon $expiresAt = null): IssuedApiToken
+    /**
+     * @param  list<string>|null  $permissions  null = acesso irrestrito
+     */
+    public function issue(string $name, ?Carbon $expiresAt = null, ?array $permissions = null): IssuedApiToken
     {
         $plainTextToken = ApiToken::PREFIX.Str::random(48);
 
@@ -26,6 +30,7 @@ class ApiTokenService
             'name' => $name,
             'token_hash' => ApiToken::hash($plainTextToken),
             'expires_at' => $expiresAt,
+            'permissions' => $permissions,
         ]);
 
         return new IssuedApiToken($apiToken, $plainTextToken);

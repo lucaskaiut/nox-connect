@@ -62,6 +62,20 @@ export default function ApiTokensListPage() {
       ),
     },
     {
+      key: 'scopes',
+      header: 'Escopos',
+      render: (token) =>
+        token.permissions === null ? (
+          <Badge variant="primary">Acesso total</Badge>
+        ) : token.permissions.length === 0 ? (
+          <Badge>Nenhum</Badge>
+        ) : (
+          <span className="text-muted">
+            {token.permissions.length} {token.permissions.length === 1 ? 'escopo' : 'escopos'}
+          </span>
+        ),
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (token) =>
