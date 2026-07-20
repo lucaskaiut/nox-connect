@@ -148,6 +148,12 @@ fi
 # ---------------------------------------------------------------------------
 # 8) Permissões
 # ---------------------------------------------------------------------------
+HOST_UID=$(stat -c '%u' "$APP_DIR")
+if [ "$HOST_UID" != "0" ] && [ "$HOST_UID" != "$(id -u www-data)" ]; then
+    usermod -u "$HOST_UID" www-data 2>/dev/null || true
+    log "UID do www-data ajustado para $HOST_UID (match com host)"
+fi
+
 mkdir -p storage/framework/{cache/data,sessions,testing,views} storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R ug+rwX storage bootstrap/cache
