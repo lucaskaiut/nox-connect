@@ -11,6 +11,7 @@ use App\Modules\Post\Http\Controllers\SitemapController;
 use App\Modules\Shared\Http\Controllers\FileUploadController;
 use App\Modules\Tenant\Http\Controllers\TenantController;
 use App\Modules\User\Http\Controllers\UserController;
+use App\Modules\Webhook\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('sitemap.xml', SitemapController::class);
@@ -44,6 +45,12 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     Route::get('api-tokens', [ApiTokenController::class, 'index'])->middleware('permission:api-token.read');
     Route::post('api-tokens', [ApiTokenController::class, 'store'])->middleware('permission:api-token.create');
     Route::delete('api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->middleware('permission:api-token.delete');
+
+    Route::get('webhooks', [WebhookController::class, 'index'])->middleware('permission:webhook.read');
+    Route::post('webhooks', [WebhookController::class, 'store'])->middleware('permission:webhook.create');
+    Route::get('webhooks/{webhook}', [WebhookController::class, 'show'])->middleware('permission:webhook.read');
+    Route::match(['put', 'patch'], 'webhooks/{webhook}', [WebhookController::class, 'update'])->middleware('permission:webhook.update');
+    Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->middleware('permission:webhook.delete');
 
     Route::post('uploads', FileUploadController::class);
 

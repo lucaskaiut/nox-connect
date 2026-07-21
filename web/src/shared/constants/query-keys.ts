@@ -19,4 +19,10 @@ export const queryKeys = {
     all: ['api-tokens'] as const,
     list: () => ['api-tokens', 'list'] as const,
   },
+
+  webhooks: {
+    all: ['webhooks'] as const,
+    list: () => ['webhooks', 'list'] as const,
+    detail: (id: number) => ['webhooks', 'detail', id] as const,
+  },
 } as const

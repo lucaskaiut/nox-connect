@@ -39,6 +39,21 @@ export interface ApiToken {
   created_at: string | null
 }
 
+export interface Webhook {
+  id: number
+  name: string
+  url: string
+  method: string
+  event: string
+  headers: Record<string, string> | null
+  query_params: Record<string, string> | null
+  body_template: Record<string, unknown> | null
+  is_active: boolean
+  description: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface Session {
   user: User
   tenant: Tenant

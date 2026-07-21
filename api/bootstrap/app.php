@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withEvents(discover: [
+        __DIR__.'/../app/Modules/Post/Events',
+        __DIR__.'/../app/Modules/Webhook/Listeners',
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
 

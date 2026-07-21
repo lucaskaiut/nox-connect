@@ -5,6 +5,9 @@ namespace App\Modules\Post\Services;
 use App\Modules\Post\Models\Category;
 use App\Modules\Post\Models\Post;
 use App\Modules\Post\Models\Tag;
+use App\Modules\Post\Events\PostCreated;
+use App\Modules\Post\Events\PostDeleted;
+use App\Modules\Post\Events\PostUpdated;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -27,8 +30,10 @@ class PostService
         $data['author_id'] = auth()->id();
         $post = Post::query()->create(Arr::except($data, ['categories', 'tags']));
         $this->syncRelations($post, $data);
+        $post->load(['author', 'categories', 'tags']);
+        PostCreated::dispatch($post);
 
-        return $post->load(['author', 'categories', 'tags']);
+        return $post;
     }
 
     public function update(Post $post, array $data): Post
@@ -36,11 +41,17 @@ class PostService
         if (isset($data['title']) && ! isset($data['slug'])) $data['slug'] = Str::slug($data['title']);
         $post->fill(Arr::except($data, ['categories', 'tags'])); $post->save();
         $this->syncRelations($post, $data);
+        $post->refresh()->load(['author', 'categories', 'tags']);
+        PostUpdated::dispatch($post);
 
-        return $post->refresh()->load(['author', 'categories', 'tags']);
+        return $post;
     }
 
-    public function delete(Post $post): void { $post->delete(); }
+    public function delete(Post $post): void
+    {
+        $post->delete();
+        PostDeleted::dispatch($post);
+    }
 
     private function syncRelations(Post $post, array $data): void
     {

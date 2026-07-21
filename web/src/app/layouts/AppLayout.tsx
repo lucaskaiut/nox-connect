@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
-import { LayoutDashboard, FileText, FolderTree, KeyRound, LogOut, Menu, Settings, ShieldCheck, Users, Zap } from 'lucide-react'
+import { LayoutDashboard, FileText, FolderTree, KeyRound, LogOut, Menu, Settings, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
 import { useSessionStore } from '@/shared/stores/session.store'
 import { useUiStore } from '@/shared/stores/ui.store'
 import { Permission } from '@/shared/constants/permissions'
@@ -55,6 +55,9 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         )}
         {can(Permission.API_TOKEN_READ) && (
           <SidebarItem to="/api-tokens" icon={KeyRound} label="Tokens de API" onNavigate={onNavigate} />
+        )}
+        {can(Permission.WEBHOOK_READ) && (
+          <SidebarItem to="/webhooks" icon={Webhook} label="Webhooks" onNavigate={onNavigate} />
         )}
       </SidebarGroup>
 

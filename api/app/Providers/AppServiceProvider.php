@@ -10,6 +10,8 @@ use App\Modules\Tenant\Models\Tenant;
 use App\Modules\Tenant\Policies\TenantPolicy;
 use App\Modules\User\Models\User;
 use App\Modules\User\Policies\UserPolicy;
+use App\Modules\Webhook\Models\Webhook;
+use App\Modules\Webhook\Policies\WebhookPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -56,5 +58,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Post::class, PostPolicy::class);
+        Gate::policy(Webhook::class, WebhookPolicy::class);
     }
 }

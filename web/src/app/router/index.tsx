@@ -19,6 +19,9 @@ const RoleCreatePage = lazy(() => import('@/modules/roles/pages/RoleCreatePage')
 const RoleEditPage = lazy(() => import('@/modules/roles/pages/RoleEditPage'))
 const ApiTokensListPage = lazy(() => import('@/modules/api-tokens/pages/ApiTokensListPage'))
 const ApiTokenCreatePage = lazy(() => import('@/modules/api-tokens/pages/ApiTokenCreatePage'))
+const WebhooksListPage = lazy(() => import('@/modules/webhooks/pages/WebhooksListPage'))
+const WebhookCreatePage = lazy(() => import('@/modules/webhooks/pages/WebhookCreatePage'))
+const WebhookEditPage = lazy(() => import('@/modules/webhooks/pages/WebhookEditPage'))
 const PostsListPage = lazy(() => import('@/modules/posts/pages/PostsListPage'))
 const PostCreatePage = lazy(() => import('@/modules/posts/pages/PostCreatePage'))
 const PostEditPage = lazy(() => import('@/modules/posts/pages/PostEditPage'))
@@ -107,6 +110,30 @@ export const router = createBrowserRouter([
             element: (
               <PermissionGuard permission={Permission.API_TOKEN_CREATE}>
                 <ApiTokenCreatePage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/webhooks',
+            element: (
+              <PermissionGuard permission={Permission.WEBHOOK_READ}>
+                <WebhooksListPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/webhooks/create',
+            element: (
+              <PermissionGuard permission={Permission.WEBHOOK_CREATE}>
+                <WebhookCreatePage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/webhooks/:id/edit',
+            element: (
+              <PermissionGuard permission={Permission.WEBHOOK_UPDATE}>
+                <WebhookEditPage />
               </PermissionGuard>
             ),
           },
