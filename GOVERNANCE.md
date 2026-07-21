@@ -1,50 +1,65 @@
 # Template Governance — nox-skeleton
 
-> The template is a **generic multi-tenant SaaS starter** — not a CMS, ERP, or eCommerce.
-
-**Remote:** `template` → `git@github.com:lucaskaiut/nox-skeleton.git`
-
----
-
-## Template = Generic Infrastructure
-
-The template provides what **any SaaS** needs: multi-tenancy, ACL, auth, user/role/token management, Design System, layouts, guards, Docker.
-
-**Project** code is domain-specific: posts, products, invoices, leads, AI publishers.
+> This is the **Origin Template** — a **generic multi-tenant SaaS starter**.
+> It is NOT a CMS, ERP, or eCommerce. It contains only infrastructure that any
+> domain-specific application can be built upon.
 
 ---
 
-## CORE (Template)
+## What the Template Owns (CORE)
 
-| Layer | Concern |
-|---|---|
-| **Backend** | Tenant resolver, ACL (RBAC), Auth (Sanctum), User/Token CRUD, Shared utils, File upload, Middleware, Error handling, DB structure for core entities |
-| **Frontend** | Design System components, HTTP layer, Stores, Guards, Layouts, Router, Providers, Auth/Dashboard/Users/Roles/Tokens modules |
-| **Infra** | Docker Compose, PHP/Nginx/MySQL/Node containers |
+### Backend
 
-## PROJECT (Application)
+- Multi-tenancy, ACL/RBAC, Authentication, User/Token management
+- Shared utilities, File upload, Middleware, Error handling
+- Generic webhooks (CRUD + dispatch infrastructure)
+- Database structure for core entities
 
-| Concern |
-|---|
-| Blog / Posts / Categories |
-| Products / Orders / eCommerce |
-| Invoices / ERP |
-| CRM entities |
-| AI content publisher |
-| Any domain-specific entity or workflow |
+### Frontend
+
+- Design System components
+- HTTP layer, State stores, Shared types/constants/hooks/utils
+- Guards (Auth, Guest, Permission), Layouts (AppLayout, AuthLayout)
+- Router structure, Providers, CSS design tokens
+- Auth, Dashboard, Users, Roles, API Tokens, Webhooks modules
+
+### Infrastructure
+
+- Docker Compose (mysql, php-fpm, nginx, node/vite)
+- Dockerfiles for PHP, Nginx, MySQL, Web (Node/Vite)
+- Environment templates
+
+---
+
+## What the Template does NOT own
+
+- Blog / Posts / Categories / Tags
+- eCommerce (Products, Orders, Cart)
+- ERP (Invoices, Inventory, Suppliers)
+- CRM (Leads, Deals, Pipelines)
+- AI content publisher
+- **Any domain-specific entity or workflow**
 
 ---
 
 ## Key Rules
 
-- **Permission enum** in template contains only infrastructure permissions (user.*, tenant.*, role.*, api-token.*). Domain permissions go in the project.
+- **Permission enum** contains only infrastructure permissions (user.*, tenant.*, role.*, api-token.*, webhook.*). Domain permissions are defined in derived projects.
 - **Design System components** are always CORE — UI primitives, not domain logic.
-- **Decision test:** "Would an ERP, eCommerce, or CRM need this?" No → PROJECT.
+- **Decision test:** "Would an ERP, eCommerce, or CRM need this?" No → not CORE.
 
 ---
 
-## Closing Checklist
+## For Derived Projects
 
-- [ ] Change classified?
-- [ ] If CORE: Template updated first?
-- [ ] No divergence between Template and Project?
+Projects live alongside this template as sibling directories:
+
+```
+development/
+├── nox-skeleton/       ← This template (CORE only)
+└── nox-cms/            ← Derived project (CORE + PROJECT)
+```
+
+There is no git remote coupling. CORE changes are synchronized by copying
+files between directories — see the project's `.opencode/skills/template-governance/SKILL.md`
+for the detailed workflow.
