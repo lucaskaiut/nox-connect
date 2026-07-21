@@ -26,7 +26,7 @@ import { isApiError } from '@/shared/api/errors'
 import { applyApiErrorsToForm } from '@/shared/utils/forms'
 import { formatDate, formatRelative } from '@/shared/utils/format'
 import type { WebhookLog } from '@/shared/types/models'
-import { useUpdateWebhook, useWebhookLogsQuery, useWebhookQuery } from '../hooks/useWebhooks'
+import { useUpdateWebhook, useWebhookLogsQuery, useWebhookQuery, useWebhookEventsQuery } from '../hooks/useWebhooks'
 import {
   webhookSchema,
   WEBHOOK_METHODS,
@@ -39,6 +39,7 @@ export default function WebhookEditPage() {
   const updateWebhook = useUpdateWebhook()
   const { data: webhook, isPending } = useWebhookQuery(Number(id))
   const { data: logs, isPending: logsPending } = useWebhookLogsQuery(Number(id))
+  const { data: events = [] } = useWebhookEventsQuery()
   const [expandedLog, setExpandedLog] = useState<number | null>(null)
 
   const form = useForm<WebhookFormValues>({
@@ -137,7 +138,7 @@ export default function WebhookEditPage() {
 
               <Section title="Evento e requisição">
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <TextField name="event" label="Evento" placeholder="Ex.: entity.created" required />
+                  <SelectField name="event" label="Evento" required placeholder="Selecione um evento" options={events} />
                   <SelectField name="method" label="Método HTTP" required options={[...WEBHOOK_METHODS]} />
                   <TextField name="url" label="URL" placeholder="https://exemplo.com/hooks" required className="sm:col-span-3" />
                 </div>

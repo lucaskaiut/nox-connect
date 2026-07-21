@@ -15,6 +15,11 @@ export interface WebhookPayload {
   description?: string | null
 }
 
+export interface WebhookEventOption {
+  value: string
+  label: string
+}
+
 export const webhooksService = {
   async list(): Promise<Webhook[]> {
     const response = await http.get<ApiResponse<Webhook[]>>('/webhooks')
@@ -46,6 +51,12 @@ export const webhooksService = {
 
   async logs(id: number): Promise<WebhookLog[]> {
     const response = await http.get<ApiResponse<WebhookLog[]>>(`/webhooks/${id}/logs`)
+
+    return response.data.data
+  },
+
+  async events(): Promise<WebhookEventOption[]> {
+    const response = await http.get<ApiResponse<WebhookEventOption[]>>('/webhooks/events')
 
     return response.data.data
   },

@@ -19,7 +19,7 @@ import {
 } from '@/shared/design-system'
 import { isApiError } from '@/shared/api/errors'
 import { applyApiErrorsToForm } from '@/shared/utils/forms'
-import { useCreateWebhook } from '../hooks/useWebhooks'
+import { useCreateWebhook, useWebhookEventsQuery } from '../hooks/useWebhooks'
 import {
   webhookSchema,
   WEBHOOK_METHODS,
@@ -29,6 +29,7 @@ import {
 export default function WebhookCreatePage() {
   const navigate = useNavigate()
   const createWebhook = useCreateWebhook()
+  const { data: events = [] } = useWebhookEventsQuery()
 
   const form = useForm<WebhookFormValues>({
     resolver: zodResolver(webhookSchema),
@@ -104,7 +105,7 @@ export default function WebhookCreatePage() {
 
               <Section title="Evento e requisição">
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <TextField name="event" label="Evento" placeholder="Ex.: entity.created" required />
+                  <SelectField name="event" label="Evento" required placeholder="Selecione um evento" options={events} />
                   <SelectField name="method" label="Método HTTP" required options={[...WEBHOOK_METHODS]} />
                   <TextField name="url" label="URL" placeholder="https://exemplo.com/hooks" required className="sm:col-span-3" />
                 </div>
