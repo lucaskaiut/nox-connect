@@ -4,7 +4,6 @@ namespace App\Modules\Webhook\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Modules\Webhook\Enums\WebhookEvent;
 
 class UpdateWebhookRequest extends FormRequest
 {
@@ -19,7 +18,7 @@ class UpdateWebhookRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'url' => ['sometimes', 'url', 'max:2048'],
             'method' => ['sometimes', 'string', Rule::in(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])],
-            'event' => ['sometimes', 'string', Rule::enum(WebhookEvent::class)],
+            'event' => ['sometimes', 'string', 'max:255'],
             'headers' => ['nullable', 'array'],
             'query_params' => ['nullable', 'array'],
             'body_template' => ['nullable', 'array'],

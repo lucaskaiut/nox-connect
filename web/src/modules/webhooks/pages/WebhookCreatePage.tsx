@@ -22,7 +22,6 @@ import { applyApiErrorsToForm } from '@/shared/utils/forms'
 import { useCreateWebhook } from '../hooks/useWebhooks'
 import {
   webhookSchema,
-  WEBHOOK_EVENTS,
   WEBHOOK_METHODS,
   type WebhookFormValues,
 } from '../schemas/webhook.schema'
@@ -37,7 +36,7 @@ export default function WebhookCreatePage() {
       name: '',
       url: '',
       method: 'POST',
-      event: WEBHOOK_EVENTS[0].value,
+      event: '',
       headers: [],
       query_params: [],
       body_template: '',
@@ -105,7 +104,7 @@ export default function WebhookCreatePage() {
 
               <Section title="Evento e requisição">
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <SelectField name="event" label="Evento" required options={[...WEBHOOK_EVENTS]} />
+                  <TextField name="event" label="Evento" placeholder="Ex.: entity.created" required />
                   <SelectField name="method" label="Método HTTP" required options={[...WEBHOOK_METHODS]} />
                   <TextField name="url" label="URL" placeholder="https://exemplo.com/hooks" required className="sm:col-span-3" />
                 </div>
@@ -147,7 +146,7 @@ export default function WebhookCreatePage() {
                 </div>
               </Section>
 
-              <Section title="Body customizado" description="Template JSON com placeholders {{campo}} para os dados do post. Deixe vazio para usar o padrão.">
+              <Section title="Body customizado" description="Template JSON com placeholders {{campo}} para os dados do recurso. Deixe vazio para usar o padrão.">
                 <TextareaField name="body_template" label="Template JSON" placeholder='{"title": "{{title}}", "slug": "{{slug}}"}' rows={4} />
               </Section>
 

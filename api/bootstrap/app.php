@@ -28,7 +28,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withEvents(discover: [
-        __DIR__.'/../app/Modules/Post/Events',
         __DIR__.'/../app/Modules/Webhook/Listeners',
     ])
     ->withMiddleware(function (Middleware $middleware): void {

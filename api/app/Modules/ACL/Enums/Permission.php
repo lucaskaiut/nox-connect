@@ -21,22 +21,10 @@ enum Permission: string
     case API_TOKEN_READ = 'api-token.read';
     case API_TOKEN_DELETE = 'api-token.delete';
 
-    // --- Projeto: Posts ---
-    case POST_CREATE = 'post.create';
-    case POST_READ = 'post.read';
-    case POST_UPDATE = 'post.update';
-    case POST_DELETE = 'post.delete';
-    case POST_PUBLISH = 'post.publish';
-
-    // --- Template: Webhooks ---
     case WEBHOOK_CREATE = 'webhook.create';
     case WEBHOOK_READ = 'webhook.read';
     case WEBHOOK_UPDATE = 'webhook.update';
     case WEBHOOK_DELETE = 'webhook.delete';
-
-    // --- Projeto: AI Publisher ---
-    case AI_PUBLISH = 'ai.publish';
-    case AI_READ = 'ai.read';
 
     /**
      * @return list<string>

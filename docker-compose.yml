@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${DB_DATABASE:-nox_cms}
+      MYSQL_DATABASE: ${DB_DATABASE:-nox}
       MYSQL_USER: ${DB_USERNAME:-nox}
       MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
     ports:

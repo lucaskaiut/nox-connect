@@ -1,12 +1,5 @@
 import { z } from 'zod'
 
-export const WEBHOOK_EVENTS = [
-  { value: 'post.created', label: 'Post criado' },
-  { value: 'post.updated', label: 'Post atualizado' },
-  { value: 'post.deleted', label: 'Post removido' },
-  { value: 'post.published', label: 'Post publicado' },
-] as const
-
 export const WEBHOOK_METHODS = [
   { value: 'POST', label: 'POST' },
   { value: 'GET', label: 'GET' },
@@ -15,7 +8,6 @@ export const WEBHOOK_METHODS = [
   { value: 'DELETE', label: 'DELETE' },
 ] as const
 
-const eventValues = WEBHOOK_EVENTS.map((e) => e.value) as [string, ...string[]]
 const methodValues = WEBHOOK_METHODS.map((m) => m.value) as [string, ...string[]]
 
 const headerEntrySchema = z.object({
@@ -32,7 +24,7 @@ export const webhookSchema = z.object({
   name: z.string().min(1, 'Informe um nome para identificar o webhook'),
   url: z.string().url('Informe uma URL válida'),
   method: z.enum(methodValues),
-  event: z.enum(eventValues),
+  event: z.string().min(1, 'Informe o nome do evento'),
   headers: z.array(headerEntrySchema).optional(),
   query_params: z.array(queryParamEntrySchema).optional(),
   body_template: z.string().optional(),

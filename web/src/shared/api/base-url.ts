@@ -4,6 +4,6 @@
  * Em produção (Vercel), deve ser a URL absoluta da API
  * definida em VITE_API_BASE_URL.
  *
- * Exemplo: VITE_API_BASE_URL=https://cms-api.noxtecnologias.com.br
+ * Exemplo: VITE_API_BASE_URL=https://api.example.com
  */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''

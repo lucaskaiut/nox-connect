@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
-import { LayoutDashboard, FileText, FolderTree, KeyRound, LogOut, Menu, Settings, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
+import { LayoutDashboard, KeyRound, LogOut, Menu, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
 import { useSessionStore } from '@/shared/stores/session.store'
 import { useUiStore } from '@/shared/stores/ui.store'
 import { Permission } from '@/shared/constants/permissions'
@@ -30,7 +30,7 @@ function Brand() {
         <Zap className="size-4.5" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm leading-tight font-semibold text-foreground">Nox CMS</span>
+        <span className="block text-sm leading-tight font-semibold text-foreground">Nox</span>
         <span className="block truncate text-xs text-muted">{tenant?.name}</span>
       </span>
     </div>
@@ -61,18 +61,6 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </SidebarGroup>
 
-      {can(Permission.POST_READ) && (
-        <SidebarGroup label="Conteúdo">
-          <SidebarItem to="/posts" icon={FileText} label="Posts" onNavigate={onNavigate} />
-          <SidebarItem to="/categories" icon={FolderTree} label="Categorias" onNavigate={onNavigate} />
-        </SidebarGroup>
-      )}
-
-      {can(Permission.AI_READ) && (
-        <SidebarGroup label="IA">
-          <SidebarItem to="/settings/editorial" icon={Settings} label="Editorial" onNavigate={onNavigate} />
-        </SidebarGroup>
-      )}
     </Sidebar>
   )
 }

@@ -22,12 +22,6 @@ const ApiTokenCreatePage = lazy(() => import('@/modules/api-tokens/pages/ApiToke
 const WebhooksListPage = lazy(() => import('@/modules/webhooks/pages/WebhooksListPage'))
 const WebhookCreatePage = lazy(() => import('@/modules/webhooks/pages/WebhookCreatePage'))
 const WebhookEditPage = lazy(() => import('@/modules/webhooks/pages/WebhookEditPage'))
-const PostsListPage = lazy(() => import('@/modules/posts/pages/PostsListPage'))
-const PostCreatePage = lazy(() => import('@/modules/posts/pages/PostCreatePage'))
-const PostEditPage = lazy(() => import('@/modules/posts/pages/PostEditPage'))
-const CategoriesPage = lazy(() => import('@/modules/categories/pages/CategoriesPage'))
-const EditorialSettingsPage = lazy(() => import('@/modules/settings/pages/EditorialSettingsPage'))
-
 export const router = createBrowserRouter([
   {
     element: <GuestGuard />,
@@ -134,46 +128,6 @@ export const router = createBrowserRouter([
             element: (
               <PermissionGuard permission={Permission.WEBHOOK_UPDATE}>
                 <WebhookEditPage />
-              </PermissionGuard>
-            ),
-          },
-          {
-            path: '/posts',
-            element: (
-              <PermissionGuard permission={Permission.POST_READ}>
-                <PostsListPage />
-              </PermissionGuard>
-            ),
-          },
-          {
-            path: '/posts/create',
-            element: (
-              <PermissionGuard permission={Permission.POST_CREATE}>
-                <PostCreatePage />
-              </PermissionGuard>
-            ),
-          },
-          {
-            path: '/posts/:id/edit',
-            element: (
-              <PermissionGuard permission={Permission.POST_UPDATE}>
-                <PostEditPage />
-              </PermissionGuard>
-            ),
-          },
-          {
-            path: '/categories',
-            element: (
-              <PermissionGuard permission={Permission.POST_READ}>
-                <CategoriesPage />
-              </PermissionGuard>
-            ),
-          },
-          {
-            path: '/settings/editorial',
-            element: (
-              <PermissionGuard permission={Permission.AI_READ}>
-                <EditorialSettingsPage />
               </PermissionGuard>
             ),
           },

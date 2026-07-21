@@ -20,15 +20,6 @@ export const Permission = {
   WEBHOOK_READ: 'webhook.read',
   WEBHOOK_UPDATE: 'webhook.update',
   WEBHOOK_DELETE: 'webhook.delete',
-
-  POST_CREATE: 'post.create',
-  POST_READ: 'post.read',
-  POST_UPDATE: 'post.update',
-  POST_DELETE: 'post.delete',
-  POST_PUBLISH: 'post.publish',
-
-  AI_PUBLISH: 'ai.publish',
-  AI_READ: 'ai.read',
 } as const
 
 export type Permission = (typeof Permission)[keyof typeof Permission]
@@ -79,23 +70,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { value: Permission.WEBHOOK_CREATE, label: 'Criar webhooks' },
       { value: Permission.WEBHOOK_UPDATE, label: 'Editar webhooks' },
       { value: Permission.WEBHOOK_DELETE, label: 'Remover webhooks' },
-    ],
-  },
-  {
-    label: 'Conteúdo',
-    permissions: [
-      { value: Permission.POST_READ, label: 'Visualizar posts' },
-      { value: Permission.POST_CREATE, label: 'Criar posts' },
-      { value: Permission.POST_UPDATE, label: 'Editar posts' },
-      { value: Permission.POST_DELETE, label: 'Remover posts' },
-      { value: Permission.POST_PUBLISH, label: 'Publicar posts' },
-    ],
-  },
-  {
-    label: 'AI Publisher',
-    permissions: [
-      { value: Permission.AI_READ, label: 'Consultar AI Publisher' },
-      { value: Permission.AI_PUBLISH, label: 'Publicar via IA' },
     ],
   },
 ]

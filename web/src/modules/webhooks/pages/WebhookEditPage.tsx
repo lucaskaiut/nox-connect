@@ -29,7 +29,6 @@ import type { WebhookLog } from '@/shared/types/models'
 import { useUpdateWebhook, useWebhookLogsQuery, useWebhookQuery } from '../hooks/useWebhooks'
 import {
   webhookSchema,
-  WEBHOOK_EVENTS,
   WEBHOOK_METHODS,
   type WebhookFormValues,
 } from '../schemas/webhook.schema'
@@ -48,7 +47,7 @@ export default function WebhookEditPage() {
       name: '',
       url: '',
       method: 'POST',
-      event: WEBHOOK_EVENTS[0].value,
+      event: '',
       headers: [],
       query_params: [],
       body_template: '',
@@ -138,7 +137,7 @@ export default function WebhookEditPage() {
 
               <Section title="Evento e requisição">
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <SelectField name="event" label="Evento" required options={[...WEBHOOK_EVENTS]} />
+                  <TextField name="event" label="Evento" placeholder="Ex.: entity.created" required />
                   <SelectField name="method" label="Método HTTP" required options={[...WEBHOOK_METHODS]} />
                   <TextField name="url" label="URL" placeholder="https://exemplo.com/hooks" required className="sm:col-span-3" />
                 </div>
@@ -180,7 +179,7 @@ export default function WebhookEditPage() {
                 </div>
               </Section>
 
-              <Section title="Body customizado" description="Template JSON com placeholders {{campo}} para os dados do post.">
+              <Section title="Body customizado" description="Template JSON com placeholders {{campo}} para os dados do recurso.">
                 <TextareaField name="body_template" label="Template JSON" placeholder='{"title": "{{title}}", "slug": "{{slug}}"}' rows={4} />
               </Section>
 

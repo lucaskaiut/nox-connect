@@ -2,7 +2,6 @@
 
 namespace App\Modules\Webhook\Jobs;
 
-use App\Modules\Post\Models\Post;
 use App\Modules\Webhook\Models\Webhook;
 use App\Modules\Webhook\Models\WebhookLog;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +18,7 @@ class SendWebhook implements ShouldQueue
 
     public function __construct(
         private readonly Webhook $webhook,
-        private readonly Post $post,
+        private readonly array $data,
     ) {}
 
     public function handle(): void
@@ -74,17 +73,16 @@ class SendWebhook implements ShouldQueue
         return [
             'event' => $this->webhook->event,
             'webhook' => $this->webhook->name,
-            'data' => $this->post->toArray(),
+            'data' => $this->data,
         ];
     }
 
     private function resolveTemplate(array $template): array
     {
-        $data = $this->post->toArray();
         $json = json_encode($template);
 
         $replacements = [];
-        foreach ($data as $key => $value) {
+        foreach ($this->data as $key => $value) {
             if (is_scalar($value) || $value === null) {
                 $replacements["{{$key}}"] = (string) ($value ?? '');
             }

@@ -17,7 +17,6 @@ import { Permission } from '@/shared/constants/permissions'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 import { formatDate } from '@/shared/utils/format'
 import type { Webhook } from '@/shared/types/models'
-import { WEBHOOK_EVENTS } from '../schemas/webhook.schema'
 import { useDeleteWebhook, useWebhooksQuery } from '../hooks/useWebhooks'
 
 export default function WebhooksListPage() {
@@ -31,9 +30,6 @@ export default function WebhooksListPage() {
     if (!webhookToDelete) return
     deleteWebhook.mutate(webhookToDelete.id, { onSettled: () => setWebhookToDelete(null) })
   }
-
-  const eventLabel = (event: string) =>
-    WEBHOOK_EVENTS.find((e) => e.value === event)?.label ?? event
 
   const columns: Array<Column<Webhook>> = [
     {
@@ -58,7 +54,7 @@ export default function WebhooksListPage() {
     {
       key: 'event',
       header: 'Evento',
-      render: (webhook) => <Badge variant="primary">{eventLabel(webhook.event)}</Badge>,
+      render: (webhook) => <Badge variant="primary">{webhook.event}</Badge>,
     },
     {
       key: 'url',
