@@ -22,6 +22,13 @@ const ApiTokenCreatePage = lazy(() => import('@/modules/api-tokens/pages/ApiToke
 const WebhooksListPage = lazy(() => import('@/modules/webhooks/pages/WebhooksListPage'))
 const WebhookCreatePage = lazy(() => import('@/modules/webhooks/pages/WebhookCreatePage'))
 const WebhookEditPage = lazy(() => import('@/modules/webhooks/pages/WebhookEditPage'))
+const WhatsAppConfigsListPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigListPage'))
+const WhatsAppConfigCreatePage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigCreatePage'))
+const WhatsAppConfigEditPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigEditPage'))
+const WhatsAppInboxPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppInboxPage'))
+const WhatsAppConversationPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConversationPage'))
+const WhatsAppKanbanPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppKanbanPage'))
+const WhatsAppDashboardPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppDashboardPage'))
 export const router = createBrowserRouter([
   {
     element: <GuestGuard />,
@@ -128,6 +135,62 @@ export const router = createBrowserRouter([
             element: (
               <PermissionGuard permission={Permission.WEBHOOK_UPDATE}>
                 <WebhookEditPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+                <WhatsAppDashboardPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/inbox',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+                <WhatsAppInboxPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/conversations/:id',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+                <WhatsAppConversationPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/kanban',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_READ}>
+                <WhatsAppKanbanPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/configs',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_READ}>
+                <WhatsAppConfigsListPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/configs/create',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_CREATE}>
+                <WhatsAppConfigCreatePage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/configs/:id/edit',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_UPDATE}>
+                <WhatsAppConfigEditPage />
               </PermissionGuard>
             ),
           },

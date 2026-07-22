@@ -20,6 +20,22 @@ export const Permission = {
   WEBHOOK_READ: 'webhook.read',
   WEBHOOK_UPDATE: 'webhook.update',
   WEBHOOK_DELETE: 'webhook.delete',
+
+  WHATSAPP_CONFIG_CREATE: 'whatsapp-config.create',
+  WHATSAPP_CONFIG_READ: 'whatsapp-config.read',
+  WHATSAPP_CONFIG_UPDATE: 'whatsapp-config.update',
+  WHATSAPP_CONFIG_DELETE: 'whatsapp-config.delete',
+
+  WHATSAPP_CONVERSATION_READ: 'whatsapp.conversation.read',
+  WHATSAPP_CONVERSATION_UPDATE: 'whatsapp.conversation.update',
+
+  WHATSAPP_TAG_CREATE: 'whatsapp.tag.create',
+  WHATSAPP_TAG_READ: 'whatsapp.tag.read',
+  WHATSAPP_TAG_UPDATE: 'whatsapp.tag.update',
+  WHATSAPP_TAG_DELETE: 'whatsapp.tag.delete',
+
+  WHATSAPP_KANBAN_READ: 'whatsapp.kanban.read',
+  WHATSAPP_KANBAN_UPDATE: 'whatsapp.kanban.update',
 } as const
 
 export type Permission = (typeof Permission)[keyof typeof Permission]

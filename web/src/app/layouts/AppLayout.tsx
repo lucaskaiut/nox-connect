@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
-import { LayoutDashboard, KeyRound, LogOut, Menu, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
+import { LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
 import { useSessionStore } from '@/shared/stores/session.store'
 import { useUiStore } from '@/shared/stores/ui.store'
 import { Permission } from '@/shared/constants/permissions'
@@ -60,6 +60,18 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
           <SidebarItem to="/webhooks" icon={Webhook} label="Webhooks" onNavigate={onNavigate} />
         )}
       </SidebarGroup>
+
+      {can(Permission.WHATSAPP_CONVERSATION_READ) && (
+        <SidebarGroup label="WhatsApp">
+          <SidebarItem to="/whatsapp/inbox" icon={MessageCircle} label="Caixa de Entrada" onNavigate={onNavigate} />
+          {can(Permission.WHATSAPP_KANBAN_READ) && (
+            <SidebarItem to="/whatsapp/kanban" icon={LayoutDashboard} label="Kanban" onNavigate={onNavigate} />
+          )}
+          {can(Permission.WHATSAPP_CONFIG_READ) && (
+            <SidebarItem to="/whatsapp/configs" icon={Webhook} label="Configurações" onNavigate={onNavigate} />
+          )}
+        </SidebarGroup>
+      )}
 
     </Sidebar>
   )

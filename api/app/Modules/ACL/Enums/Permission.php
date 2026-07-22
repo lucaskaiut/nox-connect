@@ -26,6 +26,22 @@ enum Permission: string
     case WEBHOOK_UPDATE = 'webhook.update';
     case WEBHOOK_DELETE = 'webhook.delete';
 
+    case WHATSAPP_CONFIG_CREATE = 'whatsapp-config.create';
+    case WHATSAPP_CONFIG_READ = 'whatsapp-config.read';
+    case WHATSAPP_CONFIG_UPDATE = 'whatsapp-config.update';
+    case WHATSAPP_CONFIG_DELETE = 'whatsapp-config.delete';
+
+    case WHATSAPP_CONVERSATION_READ = 'whatsapp.conversation.read';
+    case WHATSAPP_CONVERSATION_UPDATE = 'whatsapp.conversation.update';
+
+    case WHATSAPP_TAG_CREATE = 'whatsapp.tag.create';
+    case WHATSAPP_TAG_READ = 'whatsapp.tag.read';
+    case WHATSAPP_TAG_UPDATE = 'whatsapp.tag.update';
+    case WHATSAPP_TAG_DELETE = 'whatsapp.tag.delete';
+
+    case WHATSAPP_KANBAN_READ = 'whatsapp.kanban.read';
+    case WHATSAPP_KANBAN_UPDATE = 'whatsapp.kanban.update';
+
     /**
      * @return list<string>
      */
