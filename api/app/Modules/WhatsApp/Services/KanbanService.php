@@ -57,7 +57,7 @@ class KanbanService
             $fromStageId,
             $stageId,
             $contactName,
-        ))->toOthers();
+        ));
     }
 
     public function getStageHistory(WhatsAppConversation $conversation): Collection

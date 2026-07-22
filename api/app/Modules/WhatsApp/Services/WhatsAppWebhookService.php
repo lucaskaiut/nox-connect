@@ -112,7 +112,7 @@ class WhatsAppWebhookService
                 $config->tenant_id,
                 $conversation->id,
                 $message->fresh()->toArray(),
-            ))->toOthers();
+            ));
         }
     }
 
@@ -167,7 +167,7 @@ class WhatsAppWebhookService
                     $waMessageId,
                     $messageStatus->value,
                     now(),
-                ))->toOthers();
+                ));
             }
 
             if ($conversation && $messageStatus === MessageStatus::Read) {
@@ -177,7 +177,7 @@ class WhatsAppWebhookService
                     $waMessageId,
                     $messageStatus->value,
                     now(),
-                ))->toOthers();
+                ));
             }
         }
     }

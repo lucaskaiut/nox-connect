@@ -97,7 +97,7 @@ class ConversationService
             $conversation->tenant_id,
             $conversation->id,
             $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
-        ))->toOthers();
+        ));
     }
 
     public function transfer(WhatsAppConversation $conversation, string $userId): void
@@ -114,7 +114,7 @@ class ConversationService
             $conversation->id,
             $fromUserId,
             $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
-        ))->toOthers();
+        ));
     }
 
     public function removeAssignment(WhatsAppConversation $conversation): void
@@ -129,7 +129,7 @@ class ConversationService
     {
         $conversation->update(['status' => ConversationStatus::Closed->value]);
 
-        broadcast(new ConversationClosed($conversation->tenant_id, $conversation->id))->toOthers();
+        broadcast(new ConversationClosed($conversation->tenant_id, $conversation->id));
     }
 
     public function reopen(WhatsAppConversation $conversation): void

@@ -61,7 +61,7 @@ class MessageService
                 $conversation->tenant_id,
                 $conversation->id,
                 $message->fresh()->toArray(),
-            ))->toOthers();
+            ));
         }
 
         return $message;
