@@ -20,6 +20,7 @@ use App\Modules\WhatsApp\Policies\TagPolicy;
 use App\Modules\WhatsApp\Policies\WhatsAppConfigPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureRateLimiting();
         $this->configurePolicies();
+        $this->configureBroadcasting();
     }
 
     private function configureRateLimiting(): void
@@ -66,5 +68,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WhatsAppConversation::class, ConversationPolicy::class);
         Gate::policy(WhatsAppTag::class, TagPolicy::class);
         Gate::policy(KanbanStage::class, KanbanPolicy::class);
+    }
+
+    private function configureBroadcasting(): void
+    {
+        Broadcast::routes(['middleware' => ['auth:sanctum']]);
     }
 }

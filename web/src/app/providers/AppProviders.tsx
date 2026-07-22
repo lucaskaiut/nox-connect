@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { isApiError } from '@/shared/api/errors'
 import { Toaster } from '@/shared/design-system'
+import { RealtimeProvider } from '@/shared/realtime/RealtimeProvider'
 import { ThemeProvider } from './ThemeProvider'
 import { SessionProvider } from './SessionProvider'
 
@@ -28,7 +29,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SessionProvider>
-          {children}
+          <RealtimeProvider>
+            {children}
+          </RealtimeProvider>
           <Toaster />
         </SessionProvider>
       </ThemeProvider>

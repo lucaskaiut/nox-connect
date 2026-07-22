@@ -4,6 +4,7 @@ namespace App\Modules\WhatsApp\Services;
 
 use App\Modules\WhatsApp\Enums\MessageDirection;
 use App\Modules\WhatsApp\Enums\MessageStatus;
+use App\Modules\WhatsApp\Events\MessageSent;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
@@ -54,6 +55,14 @@ class MessageService
             'last_message_at' => now(),
             'is_unread' => false,
         ]);
+
+        if ($status === MessageStatus::Sent->value) {
+            broadcast(new MessageSent(
+                $conversation->tenant_id,
+                $conversation->id,
+                $message->fresh()->toArray(),
+            ))->toOthers();
+        }
 
         return $message;
     }

@@ -1,10 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import { GripVertical, Settings } from 'lucide-react'
 import { Badge, ButtonLink, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
 import { cn } from '@/shared/utils/cn'
-import { queryKeys } from '@/shared/constants/query-keys'
 import { Can } from '@/app/guards/PermissionGuard'
 import { Permission } from '@/shared/constants/permissions'
 import type { KanbanColumn, WhatsAppConversation } from '@/shared/types/models'
@@ -12,7 +10,6 @@ import { useKanbanBoardQuery, useMoveConversationStage } from '../hooks/useWhats
 
 export default function WhatsAppKanbanPage() {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const query = useKanbanBoardQuery()
   const moveConversation = useMoveConversationStage()
 
@@ -38,64 +35,12 @@ export default function WhatsAppKanbanPage() {
       setDropTarget(null)
       if (draggedId === null) return
 
-      const boardKey = queryKeys.whatsapp.kanban.board()
-
       moveConversation.mutate(
         { conversationId: draggedId, stageId },
-        {
-          onMutate: async () => {
-            await queryClient.cancelQueries({ queryKey: boardKey })
-
-            const previousBoard = queryClient.getQueryData<KanbanColumn[]>(boardKey)
-
-            queryClient.setQueryData<KanbanColumn[]>(boardKey, (old) => {
-              if (!old) return old
-
-              let movedCard: WhatsAppConversation | null = null
-
-              const withoutCard = old.map((col) => {
-                const cardIndex = col.conversations.findIndex((c) => c.id === draggedId)
-
-                if (cardIndex !== -1) {
-                  movedCard = col.conversations[cardIndex]
-
-                  return {
-                    ...col,
-                    conversations: col.conversations.filter((c) => c.id !== draggedId),
-                  }
-                }
-
-                return col
-              })
-
-              if (!movedCard) return withoutCard
-
-              return withoutCard.map((col) => {
-                if (col.stage.id === stageId) {
-                  return {
-                    ...col,
-                    conversations: [...col.conversations, movedCard!],
-                  }
-                }
-
-                return col
-              })
-            })
-
-            return { previousBoard }
-          },
-          onError: (_err, _vars, context) => {
-            if (context?.previousBoard) {
-              queryClient.setQueryData(boardKey, context.previousBoard)
-            }
-          },
-          onSettled: () => {
-            setDraggedId(null)
-          },
-        },
+        { onSettled: () => setDraggedId(null) },
       )
     },
-    [draggedId, moveConversation, queryClient],
+    [draggedId, moveConversation],
   )
 
   const handleDragEnd = useCallback(() => {
@@ -207,9 +152,9 @@ function KanbanColumnView({
               onDragEnd={onDragEnd}
               onClick={() => onClickCard(conversation.id)}
             />
-            ))
-          )}
-        </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }

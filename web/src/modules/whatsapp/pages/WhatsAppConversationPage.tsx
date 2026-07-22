@@ -58,6 +58,7 @@ import {
   useTagsQuery,
 } from '../hooks/useWhatsApp'
 import { useUsersQuery } from '@/modules/users/hooks/useUsers'
+import { useConversationChannel } from '@/shared/realtime/useRealtime'
 
 function formatTime(value: string | null | undefined): string {
   if (!value) return ''
@@ -190,6 +191,7 @@ export default function WhatsAppConversationPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: conversation, isLoading } = useConversationQuery(conversationId)
+  useConversationChannel(conversationId)
   const { data: tags } = useTagsQuery()
   const { data: usersData } = useUsersQuery({ per_page: 100 })
 

@@ -5,10 +5,14 @@ namespace App\Modules\WhatsApp\Services;
 use App\Modules\WhatsApp\Enums\ConversationStatus;
 use App\Modules\WhatsApp\Enums\MessageDirection;
 use App\Modules\WhatsApp\Enums\MessageStatus;
+use App\Modules\WhatsApp\Events\ConversationAssigned;
+use App\Modules\WhatsApp\Events\ConversationClosed;
+use App\Modules\WhatsApp\Events\ConversationTransferred;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationAssignment;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
+use App\Modules\User\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -86,11 +90,31 @@ class ConversationService
                 'assigned_at' => now(),
             ]);
         });
+
+        $user = User::query()->where('uuid', $userId)->first();
+
+        broadcast(new ConversationAssigned(
+            $conversation->tenant_id,
+            $conversation->id,
+            $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
+        ))->toOthers();
     }
 
     public function transfer(WhatsAppConversation $conversation, string $userId): void
     {
+        $prevAssignment = $conversation->currentAssignment()->first();
+        $fromUserId = $prevAssignment?->user_id;
+
         $this->assign($conversation, $userId);
+
+        $user = User::query()->where('uuid', $userId)->first();
+
+        broadcast(new ConversationTransferred(
+            $conversation->tenant_id,
+            $conversation->id,
+            $fromUserId,
+            $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
+        ))->toOthers();
     }
 
     public function removeAssignment(WhatsAppConversation $conversation): void
@@ -104,6 +128,8 @@ class ConversationService
     public function close(WhatsAppConversation $conversation): void
     {
         $conversation->update(['status' => ConversationStatus::Closed->value]);
+
+        broadcast(new ConversationClosed($conversation->tenant_id, $conversation->id))->toOthers();
     }
 
     public function reopen(WhatsAppConversation $conversation): void

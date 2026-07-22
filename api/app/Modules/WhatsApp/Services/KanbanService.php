@@ -3,6 +3,8 @@
 namespace App\Modules\WhatsApp\Services;
 
 use App\Modules\Tenant\Support\Facades\TenantContext;
+use App\Modules\WhatsApp\Events\KanbanCardCreated;
+use App\Modules\WhatsApp\Events\KanbanCardMoved;
 use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationStageMove;
@@ -34,6 +36,8 @@ class KanbanService
 
     public function moveConversation(WhatsAppConversation $conversation, ?int $stageId, string $userId): void
     {
+        $fromStageId = $conversation->current_stage_id;
+
         WhatsAppConversationStageMove::query()->create([
             'conversation_id' => $conversation->id,
             'stage_id' => $stageId,
@@ -42,6 +46,18 @@ class KanbanService
         ]);
 
         $conversation->update(['current_stage_id' => $stageId]);
+
+        $contactName = $conversation->contact?->display_name
+            ?? $conversation->contact?->profile_name
+            ?? 'Contato';
+
+        broadcast(new KanbanCardMoved(
+            $conversation->tenant_id,
+            $conversation->id,
+            $fromStageId,
+            $stageId,
+            $contactName,
+        ))->toOthers();
     }
 
     public function getStageHistory(WhatsAppConversation $conversation): Collection

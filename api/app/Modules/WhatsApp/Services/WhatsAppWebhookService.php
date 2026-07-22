@@ -3,15 +3,18 @@
 namespace App\Modules\WhatsApp\Services;
 
 use App\Modules\WhatsApp\Enums\ConversationStatus;
+use App\Modules\WhatsApp\Enums\MessageDirection;
+use App\Modules\WhatsApp\Enums\MessageStatus;
+use App\Modules\WhatsApp\Enums\MessageType;
+use App\Modules\WhatsApp\Events\MessageDelivered;
+use App\Modules\WhatsApp\Events\MessageRead;
+use App\Modules\WhatsApp\Events\MessageReceived;
 use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppContact;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationStageMove;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
-use App\Modules\WhatsApp\Enums\MessageDirection;
-use App\Modules\WhatsApp\Enums\MessageStatus;
-use App\Modules\WhatsApp\Enums\MessageType;
 use Illuminate\Support\Arr;
 
 class WhatsAppWebhookService
@@ -104,6 +107,12 @@ class WhatsAppWebhookService
                 'is_unread' => true,
                 'status' => ConversationStatus::Open->value,
             ]);
+
+            broadcast(new MessageReceived(
+                $config->tenant_id,
+                $conversation->id,
+                $message->fresh()->toArray(),
+            ))->toOthers();
         }
     }
 
@@ -148,6 +157,28 @@ class WhatsAppWebhookService
             }
 
             $message->update($updates);
+
+            $conversation = $message->conversation()->first();
+
+            if ($conversation && $messageStatus === MessageStatus::Delivered) {
+                broadcast(new MessageDelivered(
+                    $conversation->tenant_id,
+                    $conversation->id,
+                    $waMessageId,
+                    $messageStatus->value,
+                    now(),
+                ))->toOthers();
+            }
+
+            if ($conversation && $messageStatus === MessageStatus::Read) {
+                broadcast(new MessageRead(
+                    $conversation->tenant_id,
+                    $conversation->id,
+                    $waMessageId,
+                    $messageStatus->value,
+                    now(),
+                ))->toOthers();
+            }
         }
     }
 
