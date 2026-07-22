@@ -17,7 +17,7 @@ class ConversationService
     public function list(array $filters = []): LengthAwarePaginator
     {
         $query = WhatsAppConversation::query()
-            ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage.stage'])
+            ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
             ->latest('last_message_at');
 
         if (! empty($filters['status'])) {
@@ -63,7 +63,7 @@ class ConversationService
     public function find(int $id): WhatsAppConversation
     {
         return WhatsAppConversation::query()
-            ->with(['contact', 'messages', 'notes.user', 'tags', 'currentAssignment.user', 'currentStage.stage'])
+            ->with(['contact', 'messages', 'notes.user', 'tags', 'currentAssignment.user', 'currentStage'])
             ->findOrFail($id);
     }
 
