@@ -273,3 +273,60 @@ export function useMoveConversationStage() {
     },
   })
 }
+
+export function useKanbanStagesQuery() {
+  return useQuery({
+    queryKey: queryKeys.whatsapp.kanban.stages(),
+    queryFn: whatsappService.listKanbanStages,
+  })
+}
+
+export function useCreateKanbanStage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { name: string; color?: string; sort_order?: number }) =>
+      whatsappService.createKanbanStage(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
+      toast.success('Etapa criada com sucesso.')
+    },
+  })
+}
+
+export function useUpdateKanbanStage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: number; name?: string; color?: string; sort_order?: number }) =>
+      whatsappService.updateKanbanStage(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
+      toast.success('Etapa atualizada com sucesso.')
+    },
+  })
+}
+
+export function useDeleteKanbanStage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) => whatsappService.deleteKanbanStage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
+      toast.success('Etapa removida com sucesso.')
+    },
+  })
+}
+
+export function useSeedDefaultStages() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => whatsappService.seedDefaultStages(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
+      toast.success('Etapas padrão criadas com sucesso.')
+    },
+  })
+}

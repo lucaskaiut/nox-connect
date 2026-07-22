@@ -28,6 +28,7 @@ const WhatsAppConfigEditPage = lazy(() => import('@/modules/whatsapp/pages/Whats
 const WhatsAppInboxPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppInboxPage'))
 const WhatsAppConversationPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConversationPage'))
 const WhatsAppKanbanPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppKanbanPage'))
+const WhatsAppKanbanStagesPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppKanbanStagesPage'))
 const WhatsAppDashboardPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppDashboardPage'))
 export const router = createBrowserRouter([
   {
@@ -167,6 +168,14 @@ export const router = createBrowserRouter([
             element: (
               <PermissionGuard permission={Permission.WHATSAPP_KANBAN_READ}>
                 <WhatsAppKanbanPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/kanban/stages',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_UPDATE}>
+                <WhatsAppKanbanStagesPage />
               </PermissionGuard>
             ),
           },

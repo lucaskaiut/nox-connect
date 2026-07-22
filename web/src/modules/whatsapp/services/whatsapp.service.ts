@@ -167,6 +167,24 @@ export const whatsappService = {
     await http.post(`/whatsapp/kanban/conversations/${conversationId}/move`, { stage_id: stageId })
   },
 
+  async createKanbanStage(payload: { name: string; color?: string; sort_order?: number }): Promise<KanbanStage> {
+    const response = await http.post<ApiResponse<KanbanStage>>('/whatsapp/kanban/stages', payload)
+    return response.data.data
+  },
+
+  async updateKanbanStage(id: number, payload: Partial<{ name: string; color: string; sort_order: number }>): Promise<KanbanStage> {
+    const response = await http.patch<ApiResponse<KanbanStage>>(`/whatsapp/kanban/stages/${id}`, payload)
+    return response.data.data
+  },
+
+  async deleteKanbanStage(id: number): Promise<void> {
+    await http.delete(`/whatsapp/kanban/stages/${id}`)
+  },
+
+  async seedDefaultStages(): Promise<void> {
+    await http.post('/whatsapp/kanban/seed-defaults')
+  },
+
   async getWebhookLogs(configId: number): Promise<WebhookLogEntry[]> {
     const response = await http.get<ApiResponse<WebhookLogEntry[]>>(`/whatsapp-configs/${configId}/webhook-logs`)
     return response.data.data
