@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft,
   Send,
@@ -184,6 +184,7 @@ function NoteCard({ note }: { note: WhatsAppNote }) {
 
 export default function WhatsAppConversationPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const conversationId = Number(id)
   const currentUser = useSessionStore((state) => state.user)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -260,7 +261,10 @@ export default function WhatsAppConversationPage() {
   }
 
   const handleClose = () => {
-    closeConversation.mutate(conversationId, { onSettled: () => setShowCloseConfirm(false) })
+    closeConversation.mutate(conversationId, {
+      onSettled: () => setShowCloseConfirm(false),
+      onSuccess: () => navigate('/whatsapp/inbox'),
+    })
   }
 
   const handleReopen = () => {
