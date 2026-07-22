@@ -5,6 +5,7 @@ namespace App\Modules\WhatsApp\Services;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppCloudApi
 {
@@ -12,16 +13,26 @@ class WhatsAppCloudApi
 
     public function sendMessage(WhatsAppConfig $config, string $to, array $message): array
     {
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'recipient_type' => 'individual',
+            'to' => $to,
+            'type' => $message['type'],
+            $message['type'] => $message['payload'],
+        ];
+
         $response = Http::withToken($config->access_token)
             ->timeout(30)
             ->connectTimeout(10)
-            ->post(self::BASE_URL."/{$config->phone_number_id}/messages", [
-                'messaging_product' => 'whatsapp',
-                'recipient_type' => 'individual',
-                'to' => $to,
-                'type' => $message['type'],
-                $message['type'] => $message['payload'],
-            ]);
+            ->post(self::BASE_URL."/{$config->phone_number_id}/messages", $payload);
+
+        Log::info('[WhatsApp] Envio de mensagem', [
+            'phone_number_id' => $config->phone_number_id,
+            'to' => $to,
+            'payload' => $payload,
+            'response_status' => $response->status(),
+            'response_body' => $response->json(),
+        ]);
 
         return $response->json();
     }
