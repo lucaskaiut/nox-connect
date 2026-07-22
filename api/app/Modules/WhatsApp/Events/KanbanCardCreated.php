@@ -15,7 +15,7 @@ class KanbanCardCreated implements ShouldBroadcastNow
     use SerializesModels;
 
     public function __construct(
-        public readonly int $tenantId,
+        public readonly string $tenantId,
         public readonly int $conversationId,
         public readonly int $stageId,
         public readonly string $contactName,

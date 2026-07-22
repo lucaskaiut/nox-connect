@@ -15,7 +15,7 @@ class ConversationClosed implements ShouldBroadcastNow
     use SerializesModels;
 
     public function __construct(
-        public readonly int $tenantId,
+        public readonly string $tenantId,
         public readonly int $conversationId,
     ) {}
 

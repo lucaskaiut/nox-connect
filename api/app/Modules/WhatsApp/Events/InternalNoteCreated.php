@@ -15,7 +15,7 @@ class InternalNoteCreated implements ShouldBroadcastNow
     use SerializesModels;
 
     public function __construct(
-        public readonly int $tenantId,
+        public readonly string $tenantId,
         public readonly int $conversationId,
         public readonly array $note,
     ) {}
