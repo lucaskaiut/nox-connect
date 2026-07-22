@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { GripVertical, Plus, Settings } from 'lucide-react'
-import { Badge, Button, ButtonLink, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
+import { GripVertical, Settings } from 'lucide-react'
+import { Badge, ButtonLink, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
 import { cn } from '@/shared/utils/cn'
 import { Can } from '@/app/guards/PermissionGuard'
 import { Permission } from '@/shared/constants/permissions'
@@ -140,9 +140,6 @@ function KanbanColumnView({
             {column.conversations.length}
           </span>
         </div>
-        <Button variant="ghost" size="sm" aria-label={`Adicionar etapa ${column.stage.name}`}>
-          <Plus className="size-4" />
-        </Button>
       </div>
 
       <div className="flex flex-col gap-2 p-3 pt-0">
