@@ -13,6 +13,7 @@ class WhatsAppContact extends Model
     protected $table = 'whatsapp_contacts';
 
     protected $fillable = [
+        'tenant_id',
         'wa_id',
         'profile_name',
         'display_name',

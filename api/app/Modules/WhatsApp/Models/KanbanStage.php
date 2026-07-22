@@ -14,6 +14,7 @@ class KanbanStage extends Model
     protected $table = 'whatsapp_kanban_stages';
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'color',
         'sort_order',

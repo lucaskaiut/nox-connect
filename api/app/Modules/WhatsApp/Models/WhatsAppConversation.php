@@ -18,6 +18,7 @@ class WhatsAppConversation extends Model
     protected $table = 'whatsapp_conversations';
 
     protected $fillable = [
+        'tenant_id',
         'contact_id',
         'whatsapp_config_id',
         'status',

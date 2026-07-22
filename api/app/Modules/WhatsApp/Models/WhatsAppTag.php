@@ -14,6 +14,7 @@ class WhatsAppTag extends Model
     protected $table = 'whatsapp_tags';
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'color',
         'sort_order',
