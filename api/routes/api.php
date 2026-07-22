@@ -63,6 +63,7 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     Route::delete('whatsapp-configs/{config}', [WhatsAppConfigController::class, 'destroy'])->middleware('permission:whatsapp-config.delete');
     Route::post('whatsapp-configs/{config}/test-connection', [WhatsAppConfigController::class, 'testConnection'])->middleware('permission:whatsapp-config.update');
     Route::post('whatsapp-configs/{config}/toggle', [WhatsAppConfigController::class, 'toggle'])->middleware('permission:whatsapp-config.update');
+    Route::get('whatsapp-configs/{config}/webhook-logs', [WhatsAppConfigController::class, 'webhookLogs'])->middleware('permission:whatsapp-config.read');
 
     Route::get('whatsapp/conversations', [ConversationController::class, 'index'])->middleware('permission:whatsapp.conversation.read');
     Route::get('whatsapp/conversations/{conversation}', [ConversationController::class, 'show'])->middleware('permission:whatsapp.conversation.read');

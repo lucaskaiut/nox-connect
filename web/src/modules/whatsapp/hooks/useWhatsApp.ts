@@ -3,6 +3,14 @@ import { queryKeys } from '@/shared/constants/query-keys'
 import { toast } from '@/shared/stores/toast.store'
 import { whatsappService, type ConversationFilters, type WhatsAppConfigPayload } from '../services/whatsapp.service'
 
+export function useWebhookLogsQuery(configId: number) {
+  return useQuery({
+    queryKey: queryKeys.whatsapp.configs.webhookLogs(configId),
+    queryFn: () => whatsappService.getWebhookLogs(configId),
+    enabled: configId > 0,
+  })
+}
+
 export function useWhatsAppConfigsQuery() {
   return useQuery({
     queryKey: queryKeys.whatsapp.configs.list(),

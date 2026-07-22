@@ -7,6 +7,7 @@ use App\Modules\WhatsApp\Http\Requests\StoreWhatsAppConfigRequest;
 use App\Modules\WhatsApp\Http\Requests\UpdateWhatsAppConfigRequest;
 use App\Modules\WhatsApp\Http\Resources\WhatsAppConfigResource;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
+use App\Modules\WhatsApp\Models\WhatsAppWebhookLog;
 use App\Modules\WhatsApp\Services\WhatsAppCloudApi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
@@ -107,5 +108,29 @@ class WhatsAppConfigController extends ApiController
             WhatsAppConfigResource::make($config->fresh()),
             $config->is_active ? 'Conexão ativada com sucesso.' : 'Conexão desativada com sucesso.',
         );
+    }
+
+    public function webhookLogs(WhatsAppConfig $config): JsonResponse
+    {
+        $this->authorize('view', $config);
+
+        $logs = WhatsAppWebhookLog::query()
+            ->where('whatsapp_config_id', $config->id)
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        return $this->success($logs->map(fn (WhatsAppWebhookLog $log) => [
+            'id' => $log->id,
+            'method' => $log->method,
+            'url' => $log->url,
+            'request_headers' => $log->request_headers,
+            'request_payload' => $log->request_payload,
+            'response_status' => $log->response_status,
+            'response_body' => $log->response_body,
+            'error_message' => $log->error_message,
+            'duration_ms' => $log->duration_ms,
+            'created_at' => $log->created_at?->toIso8601String(),
+        ]));
     }
 }

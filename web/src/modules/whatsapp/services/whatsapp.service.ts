@@ -26,6 +26,19 @@ export interface ConversationStats {
   unassigned: number
 }
 
+export interface WebhookLogEntry {
+  id: number
+  method: string
+  url: string | null
+  request_headers: Record<string, string[]> | null
+  request_payload: Record<string, unknown> | null
+  response_status: number | null
+  response_body: string | null
+  error_message: string | null
+  duration_ms: number | null
+  created_at: string | null
+}
+
 export const whatsappService = {
   async listConfigs(): Promise<WhatsAppConfig[]> {
     const response = await http.get<ApiResponse<WhatsAppConfig[]>>('/whatsapp-configs')
@@ -152,5 +165,10 @@ export const whatsappService = {
 
   async moveConversationStage(conversationId: number, stageId: number | null): Promise<void> {
     await http.post(`/whatsapp/kanban/conversations/${conversationId}/move`, { stage_id: stageId })
+  },
+
+  async getWebhookLogs(configId: number): Promise<WebhookLogEntry[]> {
+    const response = await http.get<ApiResponse<WebhookLogEntry[]>>(`/whatsapp-configs/${configId}/webhook-logs`)
+    return response.data.data
   },
 }

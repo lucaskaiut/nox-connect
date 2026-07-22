@@ -34,6 +34,7 @@ export const queryKeys = {
       all: ['whatsapp', 'configs'] as const,
       list: () => ['whatsapp', 'configs', 'list'] as const,
       detail: (id: number) => ['whatsapp', 'configs', 'detail', id] as const,
+      webhookLogs: (id: number) => ['whatsapp', 'configs', 'webhook-logs', id] as const,
     },
     conversations: {
       all: ['whatsapp', 'conversations'] as const,
