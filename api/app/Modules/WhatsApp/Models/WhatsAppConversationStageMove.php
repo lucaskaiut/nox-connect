@@ -38,6 +38,6 @@ class WhatsAppConversationStageMove extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id', 'uuid');
+        return $this->belongsTo(User::class, 'user_id', 'uuid')->withDefault();
     }
 }

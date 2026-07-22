@@ -3,9 +3,11 @@
 namespace App\Modules\WhatsApp\Services;
 
 use App\Modules\WhatsApp\Enums\ConversationStatus;
+use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppContact;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
+use App\Modules\WhatsApp\Models\WhatsAppConversationStageMove;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use App\Modules\WhatsApp\Enums\MessageDirection;
 use App\Modules\WhatsApp\Enums\MessageStatus;
@@ -181,6 +183,19 @@ class WhatsAppWebhookService
                 'status' => ConversationStatus::Open->value,
                 'last_message_at' => now(),
             ]);
+
+            $firstStage = KanbanStage::query()
+                ->where('tenant_id', $config->tenant_id)
+                ->orderBy('sort_order')
+                ->first();
+
+            if ($firstStage) {
+                WhatsAppConversationStageMove::query()->create([
+                    'conversation_id' => $conversation->id,
+                    'stage_id' => $firstStage->id,
+                    'moved_at' => now(),
+                ]);
+            }
         }
 
         return $conversation;
