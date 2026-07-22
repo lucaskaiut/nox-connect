@@ -262,15 +262,9 @@ export function useKanbanBoardQuery() {
 }
 
 export function useMoveConversationStage() {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: ({ conversationId, stageId }: { conversationId: number; stageId: number | null }) =>
       whatsappService.moveConversationStage(conversationId, stageId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.all })
-    },
   })
 }
 
