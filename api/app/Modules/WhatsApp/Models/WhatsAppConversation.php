@@ -22,6 +22,7 @@ class WhatsAppConversation extends Model
         'contact_id',
         'whatsapp_config_id',
         'status',
+        'current_stage_id',
         'last_message_preview',
         'last_message_at',
         'is_unread',
@@ -77,14 +78,13 @@ class WhatsAppConversation extends Model
         return $this->belongsToMany(WhatsAppTag::class, 'whatsapp_conversation_tags', 'conversation_id', 'tag_id');
     }
 
+    public function currentStage()
+    {
+        return $this->belongsTo(KanbanStage::class, 'current_stage_id');
+    }
+
     public function stageMoves(): HasMany
     {
         return $this->hasMany(WhatsAppConversationStageMove::class, 'conversation_id')->latest('moved_at');
-    }
-
-    public function currentStage()
-    {
-        return $this->hasOne(WhatsAppConversationStageMove::class, 'conversation_id')
-            ->latest('moved_at');
     }
 }

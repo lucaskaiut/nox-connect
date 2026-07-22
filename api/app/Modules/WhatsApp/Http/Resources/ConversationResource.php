@@ -43,16 +43,14 @@ class ConversationResource extends JsonResource
             }),
             'tags' => TagResource::collection($this->whenLoaded('tags')),
             'current_stage' => $this->whenLoaded('currentStage', function () {
-                $stage = $this->currentStage;
-
-                if (! $stage || ! $stage->stage) {
+                if (! $this->currentStage) {
                     return null;
                 }
 
                 return [
-                    'id' => $stage->stage->id,
-                    'name' => $stage->stage->name,
-                    'color' => $stage->stage->color,
+                    'id' => $this->currentStage->id,
+                    'name' => $this->currentStage->name,
+                    'color' => $this->currentStage->color,
                 ];
             }),
             'message_count' => $this->whenCounted('messages'),

@@ -176,18 +176,19 @@ class WhatsAppWebhookService
             ->first();
 
         if (! $conversation) {
+            $firstStage = KanbanStage::query()
+                ->where('tenant_id', $config->tenant_id)
+                ->orderBy('sort_order')
+                ->first();
+
             $conversation = WhatsAppConversation::query()->create([
                 'tenant_id' => $config->tenant_id,
                 'contact_id' => $contact->id,
                 'whatsapp_config_id' => $config->id,
                 'status' => ConversationStatus::Open->value,
+                'current_stage_id' => $firstStage?->id,
                 'last_message_at' => now(),
             ]);
-
-            $firstStage = KanbanStage::query()
-                ->where('tenant_id', $config->tenant_id)
-                ->orderBy('sort_order')
-                ->first();
 
             if ($firstStage) {
                 WhatsAppConversationStageMove::query()->create([

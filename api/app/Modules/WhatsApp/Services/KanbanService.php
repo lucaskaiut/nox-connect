@@ -40,6 +40,8 @@ class KanbanService
             'user_id' => $userId,
             'moved_at' => now(),
         ]);
+
+        $conversation->update(['current_stage_id' => $stageId]);
     }
 
     public function getStageHistory(WhatsAppConversation $conversation): Collection
@@ -54,10 +56,8 @@ class KanbanService
 
         foreach ($stages as $stage) {
             $conversations = WhatsAppConversation::query()
-                ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags'])
-                ->whereHas('currentStage', function ($q) use ($stage): void {
-                    $q->where('stage_id', $stage->id);
-                })
+                ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
+                ->where('current_stage_id', $stage->id)
                 ->latest('last_message_at')
                 ->get();
 
