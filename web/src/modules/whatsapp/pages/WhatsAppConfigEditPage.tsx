@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
-import { CheckCircle2, Wifi, XCircle } from 'lucide-react'
+import { CheckCircle2, RefreshCw, Wifi, XCircle } from 'lucide-react'
 import {
   Badge,
   Button,
@@ -29,6 +29,14 @@ import {
   whatsappConfigSchema,
   type WhatsAppConfigFormValues,
 } from '../schemas/whatsapp.schema'
+
+function generateVerifyToken(): string {
+  const chars = 'abcdef0123456789'
+
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map((b) => chars[b % chars.length])
+    .join('')
+}
 
 export default function WhatsAppConfigEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -142,12 +150,26 @@ export default function WhatsAppConfigEditPage() {
                     placeholder="Deixe em branco para manter o atual"
                     className="sm:col-span-2"
                   />
-                  <TextField
-                    name="verify_token"
-                    label="Verify Token"
-                    placeholder="Deixe em branco para manter o atual"
-                    className="sm:col-span-2"
-                  />
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <div className="flex-1">
+                      <TextField
+                        name="verify_token"
+                        label="Verify Token"
+                        placeholder="Deixe em branco para manter o atual ou gere um novo"
+                        className="w-full"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="mt-[26px] shrink-0"
+                      onClick={() => form.setValue('verify_token', generateVerifyToken())}
+                    >
+                      <RefreshCw className="size-4" />
+                      Gerar
+                    </Button>
+                  </div>
                 </div>
               </Section>
 

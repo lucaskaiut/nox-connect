@@ -18,7 +18,7 @@ class StoreWhatsAppConfigRequest extends FormRequest
             'waba_id' => ['required', 'string', 'max:255'],
             'phone_number_id' => ['required', 'string', 'max:255'],
             'access_token' => ['required', 'string', 'max:2048'],
-            'verify_token' => ['required', 'string', 'max:255'],
+            'verify_token' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

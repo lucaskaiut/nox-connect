@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router'
+import { RefreshCw } from 'lucide-react'
 import {
   Button,
   ButtonLink,
@@ -20,6 +21,14 @@ import {
   whatsappConfigSchema,
   type WhatsAppConfigFormValues,
 } from '../schemas/whatsapp.schema'
+
+function generateVerifyToken(): string {
+  const chars = 'abcdef0123456789'
+
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map((b) => chars[b % chars.length])
+    .join('')
+}
 
 export default function WhatsAppConfigCreatePage() {
   const navigate = useNavigate()
@@ -100,13 +109,27 @@ export default function WhatsAppConfigCreatePage() {
                     required
                     className="sm:col-span-2"
                   />
-                  <TextField
-                    name="verify_token"
-                    label="Verify Token"
-                    placeholder="Token de verificação do webhook"
-                    required
-                    className="sm:col-span-2"
-                  />
+                  <div className="flex items-start gap-2 sm:col-span-2">
+                    <div className="flex-1">
+                      <TextField
+                        name="verify_token"
+                        label="Verify Token"
+                        placeholder="Token gerado automaticamente para o webhook"
+                        hint="Este token será usado para verificar a URL do webhook na Meta. Salve-o antes de configurar no Meta Developer."
+                        className="w-full"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="mt-[26px] shrink-0"
+                      onClick={() => form.setValue('verify_token', generateVerifyToken())}
+                    >
+                      <RefreshCw className="size-4" />
+                      Gerar
+                    </Button>
+                  </div>
                 </div>
               </Section>
 

@@ -9,6 +9,7 @@ use App\Modules\WhatsApp\Http\Resources\WhatsAppConfigResource;
 use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Services\WhatsAppCloudApi;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class WhatsAppConfigController extends ApiController
 {
@@ -29,7 +30,13 @@ class WhatsAppConfigController extends ApiController
     {
         $this->authorize('create', WhatsAppConfig::class);
 
-        $config = WhatsAppConfig::query()->create($request->validated());
+        $data = $request->validated();
+
+        if (blank($data['verify_token'] ?? null)) {
+            $data['verify_token'] = Str::random(40);
+        }
+
+        $config = WhatsAppConfig::query()->create($data);
 
         return $this->created(
             WhatsAppConfigResource::make($config),
@@ -48,7 +55,13 @@ class WhatsAppConfigController extends ApiController
     {
         $this->authorize('update', $config);
 
-        $config->fill($request->validated())->save();
+        $data = $request->validated();
+
+        if ($request->has('verify_token') && blank($data['verify_token'])) {
+            $data['verify_token'] = Str::random(40);
+        }
+
+        $config->fill($data)->save();
 
         return $this->success(
             WhatsAppConfigResource::make($config->fresh()),

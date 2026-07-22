@@ -5,7 +5,7 @@ export const whatsappConfigSchema = z.object({
   waba_id: z.string().min(1, 'Informe o WhatsApp Business Account ID'),
   phone_number_id: z.string().min(1, 'Informe o Phone Number ID'),
   access_token: z.string().min(1, 'Informe o Access Token'),
-  verify_token: z.string().min(1, 'Informe o Verify Token'),
+  verify_token: z.string().optional(),
 })
 
 export type WhatsAppConfigFormValues = z.infer<typeof whatsappConfigSchema>
