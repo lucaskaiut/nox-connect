@@ -121,7 +121,7 @@ class ConversationController extends ApiController
 
         $note = WhatsAppNote::query()->create([
             'conversation_id' => $conversation->id,
-            'user_id' => $request->user()->getKey(),
+            'user_id' => $request->user()->uuid,
             'content' => $request->validated('content'),
         ]);
 

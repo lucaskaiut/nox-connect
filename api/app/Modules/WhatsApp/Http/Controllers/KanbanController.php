@@ -64,7 +64,7 @@ class KanbanController extends ApiController
         $this->service->moveConversation(
             $conversation,
             $request->validated('stage_id'),
-            $request->user()->getKey(),
+            $request->user()->uuid,
         );
 
         return $this->success(null, 'Card movido com sucesso.');
