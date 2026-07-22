@@ -53,7 +53,9 @@ class ConversationController extends ApiController
         $message = $this->messageService->sendText($conversation, $request->validated('content'));
 
         if ($message->status === 'failed') {
-            return $this->success(MessageResource::make($message), 'Falha ao enviar mensagem.', 500);
+            $error = $message->metadata['error_message'] ?? 'Erro ao enviar mensagem.';
+
+            return $this->success(MessageResource::make($message), $error, 500);
         }
 
         return $this->created(MessageResource::make($message), 'Mensagem enviada.');

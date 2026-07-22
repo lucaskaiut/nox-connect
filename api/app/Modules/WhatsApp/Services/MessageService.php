@@ -21,18 +21,36 @@ class MessageService
 
         $response = $this->cloudApi->sendText($config, $contact->wa_id, $text);
         $waMessageId = $response['messages'][0]['id'] ?? null;
+        $error = $response['error'] ?? null;
+
+        $status = $waMessageId ? MessageStatus::Sent->value : MessageStatus::Failed->value;
+        $metadata = null;
+
+        if ($error) {
+            $metadata = [
+                'error_code' => $error['code'] ?? null,
+                'error_type' => $error['type'] ?? null,
+                'error_message' => $error['message'] ?? 'Erro desconhecido da API',
+                'error_subcode' => $error['error_subcode'] ?? null,
+                'fbtrace_id' => $error['fbtrace_id'] ?? null,
+                'error_data' => $error['error_data'] ?? null,
+            ];
+        }
 
         $message = WhatsAppMessage::query()->create([
             'conversation_id' => $conversation->id,
             'direction' => MessageDirection::Outbound->value,
             'message_type' => 'text',
             'content' => $text,
-            'status' => $waMessageId ? MessageStatus::Sent->value : MessageStatus::Failed->value,
+            'status' => $status,
             'wa_message_id' => $waMessageId,
+            'metadata' => $metadata,
         ]);
 
         $conversation->update([
-            'last_message_preview' => mb_strimwidth($text, 0, 120, '...'),
+            'last_message_preview' => $error
+                ? '❌ ' . mb_strimwidth($error['message'] ?? 'Erro ao enviar', 0, 100, '...')
+                : mb_strimwidth($text, 0, 120, '...'),
             'last_message_at' => now(),
             'is_unread' => false,
         ]);

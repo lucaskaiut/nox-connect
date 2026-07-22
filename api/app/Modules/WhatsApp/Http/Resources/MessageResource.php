@@ -22,6 +22,7 @@ class MessageResource extends JsonResource
             'media' => $this->media,
             'wa_message_id' => $this->wa_message_id,
             'status' => $this->status,
+            'metadata' => $this->metadata,
             'delivered_at' => $this->delivered_at?->toIso8601String(),
             'read_at' => $this->read_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

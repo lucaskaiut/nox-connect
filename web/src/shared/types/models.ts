@@ -99,6 +99,7 @@ export interface WhatsAppMessage {
   media: Record<string, unknown> | null
   wa_message_id: string | null
   status: string
+  metadata: Record<string, unknown> | null
   delivered_at: string | null
   read_at: string | null
   created_at: string | null
