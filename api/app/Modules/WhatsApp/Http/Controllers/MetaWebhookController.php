@@ -23,18 +23,18 @@ class MetaWebhookController extends ApiController
             if ($request->isMethod('get')) {
                 $response = $this->verifyWebhook($request, $config);
 
-                $this->logRequest($request, $config, $response->getStatusCode(), (string) $response->getContent(), $start);
+                $this->tryLog(fn () => $this->logRequest($request, $config, $response->getStatusCode(), (string) $response->getContent(), $start));
 
                 return $response;
             }
 
             $this->webhookService->handleWebhook($config, $request->all());
 
-            $this->logRequest($request, $config, 200, '{"status":"ok"}', $start);
+            $this->tryLog(fn () => $this->logRequest($request, $config, 200, '{"status":"ok"}', $start));
 
             return response()->json(['status' => 'ok']);
         } catch (\Throwable $e) {
-            $this->logError($request, $config, $e, $start);
+            $this->tryLog(fn () => $this->logError($request, $config, $e, $start));
 
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
@@ -80,5 +80,14 @@ class MetaWebhookController extends ApiController
             'error_message' => $e->getMessage(),
             'duration_ms' => (int) round((microtime(true) - $start) * 1000),
         ]);
+    }
+
+    private function tryLog(callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (\Throwable) {
+            // nunca interrompe o fluxo da requisição por falha no log
+        }
     }
 }
