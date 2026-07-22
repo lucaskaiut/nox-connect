@@ -42,9 +42,9 @@ class MetaWebhookController extends ApiController
 
     private function verifyWebhook(Request $request, WhatsAppConfig $config): \Illuminate\Http\Response|JsonResponse
     {
-        $mode = $request->query('hub_mode');
-        $token = $request->query('hub_verify_token');
-        $challenge = $request->query('hub_challenge');
+        $mode = $request->query->get('hub.mode');
+        $token = $request->query->get('hub.verify_token');
+        $challenge = $request->query->get('hub.challenge');
 
         if ($mode === 'subscribe' && $token === $config->verify_token) {
             return response($challenge, 200)->header('Content-Type', 'text/plain');
