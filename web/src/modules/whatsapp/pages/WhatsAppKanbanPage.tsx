@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { GripVertical, Plus } from 'lucide-react'
-import { Badge, Button, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
+import { GripVertical, Plus, Settings } from 'lucide-react'
+import { Badge, Button, ButtonLink, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
 import { cn } from '@/shared/utils/cn'
+import { Can } from '@/app/guards/PermissionGuard'
+import { Permission } from '@/shared/constants/permissions'
 import type { KanbanColumn, WhatsAppConversation } from '@/shared/types/models'
 import { useKanbanBoardQuery, useMoveConversationStage } from '../hooks/useWhatsApp'
 
@@ -52,6 +54,14 @@ export default function WhatsAppKanbanPage() {
         title="Kanban de Qualificação"
         description="Organize as conversas por etapa de atendimento."
         breadcrumb={[{ label: 'WhatsApp', to: '/whatsapp/dashboard' }, { label: 'Kanban' }]}
+        actions={
+          <Can permission={Permission.WHATSAPP_KANBAN_UPDATE}>
+            <ButtonLink to="/whatsapp/kanban/stages" variant="secondary" size="sm">
+              <Settings className="size-4" />
+              Etapas
+            </ButtonLink>
+          </Can>
+        }
       />
 
       <PageContent>
