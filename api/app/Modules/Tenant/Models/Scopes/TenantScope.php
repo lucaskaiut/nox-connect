@@ -2,7 +2,9 @@
 
 namespace App\Modules\Tenant\Models\Scopes;
 
+use App\Modules\Tenant\Exceptions\TenantCouldNotBeResolved;
 use App\Modules\Tenant\Models\Tenant;
+use App\Modules\Tenant\Resolution\Contracts\TenantResolverInterface;
 use App\Modules\Tenant\Support\Facades\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +18,13 @@ class TenantScope implements Scope
             return;
         }
 
-        $builder->where($model->qualifyColumn('tenant_id'), TenantContext::tenantId());
+        try {
+            $tenantId = app(TenantResolverInterface::class)->currentTenantId();
+        } catch (TenantCouldNotBeResolved) {
+            return;
+        }
+
+        $builder->where($model->qualifyColumn('tenant_id'), $tenantId);
     }
 
     public function extend(Builder $builder): void

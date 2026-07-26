@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Check,
   CheckCheck,
   Clock,
+  Plus,
   Tag,
   MessageSquarePlus,
   X,
@@ -26,6 +27,7 @@ import {
   Card,
   CardContent,
   Textarea,
+  Input,
   Page,
   PageContent,
   PageHeader,
@@ -43,6 +45,7 @@ import { Can } from '@/app/guards/PermissionGuard'
 import { Permission } from '@/shared/constants/permissions'
 import { useSessionStore } from '@/shared/stores/session.store'
 import { cn } from '@/shared/utils/cn'
+import { TemplateModal } from '../components/TemplateModal'
 import { formatDateTime } from '@/shared/utils/format'
 import type { WhatsAppMessage, WhatsAppNote, WhatsAppTag } from '@/shared/types/models'
 import {
@@ -56,6 +59,7 @@ import {
   useAddNote,
   useSyncConversationTags,
   useTagsQuery,
+  useCreateTag,
 } from '../hooks/useWhatsApp'
 import { useUsersQuery } from '@/modules/users/hooks/useUsers'
 import { useConversationChannel } from '@/shared/realtime/useRealtime'
@@ -149,6 +153,11 @@ function MessageBubble({ message, isOutbound }: { message: WhatsAppMessage; isOu
             : 'rounded-bl-md bg-surface-2 text-foreground',
         )}
       >
+        {isOutbound && message.sender_name && (
+          <span className="mb-2 block text-[11px] font-semibold text-primary-foreground/80">
+            {message.sender_name}
+          </span>
+        )}
         {message.message_type !== 'text' || !message.content ? (
           <MediaPlaceholder type={message.message_type} />
         ) : (
@@ -183,6 +192,105 @@ function NoteCard({ note }: { note: WhatsAppNote }) {
   )
 }
 
+function TagManagementModal({
+  open,
+  onClose,
+  conversationId,
+  selectedTagIds,
+  onToggleTag,
+}: {
+  open: boolean
+  onClose: () => void
+  conversationId: number
+  selectedTagIds: number[]
+  onToggleTag: (tagId: number) => void
+}) {
+  const { data: tags } = useTagsQuery()
+  const createTag = useCreateTag()
+  const syncTags = useSyncConversationTags()
+
+  const [search, setSearch] = useState('')
+
+  const filtered = tags?.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()),
+  ) ?? []
+
+  const hasExactMatch = filtered.some(
+    (t) => t.name.toLowerCase() === search.trim().toLowerCase(),
+  )
+  const showCreate = search.trim().length > 0 && !hasExactMatch
+
+  const handleCreateAndAdd = async () => {
+    const name = search.trim()
+    if (!name) return
+    const newTag = await createTag.mutateAsync({ name })
+    syncTags.mutate({ id: conversationId, tagIds: [...selectedTagIds, newTag.id] })
+    setSearch('')
+  }
+
+  const handleClose = useCallback(() => {
+    setSearch('')
+    onClose()
+  }, [onClose])
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Gerenciar tags" size="sm">
+      <div className="space-y-3">
+        <Input
+          placeholder="Buscar ou criar tag..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="space-y-2">
+          {filtered.length === 0 && !showCreate ? (
+            <p className="text-sm text-muted">Nenhuma tag disponível.</p>
+          ) : (
+            <>
+              {filtered.map((tag) => {
+                const checked = selectedTagIds.includes(tag.id)
+                return (
+                  <label
+                    key={tag.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-surface-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleTag(tag.id)}
+                      className="size-4 rounded accent-primary"
+                    />
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ backgroundColor: tag.color ?? '#888' }}
+                    />
+                    <span className="text-sm text-foreground">{tag.name}</span>
+                  </label>
+                )
+              })}
+              {showCreate && (
+                <button
+                  type="button"
+                  onClick={handleCreateAndAdd}
+                  disabled={createTag.isPending || syncTags.isPending}
+                  className="flex w-full items-center gap-2 rounded-lg p-2 text-sm text-primary transition-colors hover:bg-surface-2 disabled:opacity-50"
+                >
+                  <Plus className="size-4" />
+                  Adicionar &quot;{search.trim()}&quot;
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button variant="secondary" onClick={handleClose}>
+          Fechar
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
 export default function WhatsAppConversationPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -211,8 +319,10 @@ export default function WhatsAppConversationPage() {
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
 
   const isClosed = conversation?.status === 'closed'
+  const windowOpen = conversation?.is_window_open ?? true
   const isAssignedToMe =
     conversation?.current_assignment?.user?.id === currentUser?.id
 
@@ -282,12 +392,17 @@ export default function WhatsAppConversationPage() {
     )
   }
 
-  const handleToggleTag = (tagId: number) => {
-    const next = selectedTagIds.includes(tagId)
-      ? selectedTagIds.filter((t) => t !== tagId)
-      : [...selectedTagIds, tagId]
-    syncTags.mutate({ id: conversationId, tagIds: next })
-  }
+  const handleToggleTag = useCallback(
+    (tagId: number) => {
+      const next = selectedTagIds.includes(tagId)
+        ? selectedTagIds.filter((t) => t !== tagId)
+        : [...selectedTagIds, tagId]
+      syncTags.mutate({ id: conversationId, tagIds: next })
+    },
+    [selectedTagIds, conversationId, syncTags],
+  )
+
+  const closeTagModal = useCallback(() => setShowTagModal(false), [])
 
   const userOptions: SelectOption[] =
     usersData?.data
@@ -320,15 +435,17 @@ export default function WhatsAppConversationPage() {
   return (
     <Page>
       <PageHeader
-        title={conversation.contact.profile_name ?? conversation.contact.wa_id}
+        title={conversation.contact.profile_name ?? conversation.contact.external_contact_id}
         description={
           <span className="flex items-center gap-1.5">
             {isClosed ? (
               <Badge variant="neutral">Fechada</Badge>
+            ) : !windowOpen ? (
+              <Badge variant="warning">Janela encerrada</Badge>
             ) : (
               <Badge variant="success">Aberta</Badge>
             )}
-            {conversation.contact.wa_id}
+            {conversation.contact.external_contact_id}
           </span>
         }
         breadcrumb={[
@@ -510,66 +627,54 @@ export default function WhatsAppConversationPage() {
           </div>
 
           <div className="flex items-end gap-2 border-t border-surface-3 p-3">
-            <Textarea
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isClosed ? 'Conversa fechada' : 'Digite sua mensagem...'}
-              disabled={isClosed}
-              rows={1}
-              className="min-h-10 max-h-32 resize-none"
-            />
-            <Button
-              size="sm"
-              onClick={handleSendMessage}
-              loading={sendMessage.isPending}
-              disabled={!messageText.trim() || isClosed}
-            >
-              <Send className="size-4" />
-            </Button>
+            {!windowOpen ? (
+              <>
+                <Textarea
+                  value=""
+                  placeholder="A janela do WhatsApp está encerrada"
+                  disabled
+                  rows={1}
+                  className="min-h-10 max-h-32 flex-1 resize-none opacity-50"
+                />
+                <Can permission={Permission.WHATSAPP_CONVERSATION_UPDATE}>
+                  <Button size="sm" variant="secondary" onClick={() => setShowTemplateModal(true)}>
+                    <Send className="size-4" />
+                    Enviar Template
+                  </Button>
+                </Can>
+              </>
+            ) : (
+              <>
+                <Textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isClosed ? 'Conversa fechada' : 'Digite sua mensagem...'}
+                  disabled={isClosed}
+                  rows={1}
+                  className="min-h-10 max-h-32 resize-none"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSendMessage}
+                  loading={sendMessage.isPending}
+                  disabled={!messageText.trim() || isClosed}
+                >
+                  <Send className="size-4" />
+                </Button>
+              </>
+            )}
           </div>
         </Card>
       </PageContent>
 
-      <Modal
+      <TagManagementModal
         open={showTagModal}
-        onClose={() => setShowTagModal(false)}
-        title="Gerenciar tags"
-        size="sm"
-      >
-        <div className="space-y-2">
-          {tags?.length ? (
-            tags.map((tag) => {
-              const checked = selectedTagIds.includes(tag.id)
-              return (
-                <label
-                  key={tag.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-surface-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => handleToggleTag(tag.id)}
-                    className="size-4 rounded accent-primary"
-                  />
-                  <span
-                    className="size-3 rounded-full"
-                    style={{ backgroundColor: tag.color ?? '#888' }}
-                  />
-                  <span className="text-sm text-foreground">{tag.name}</span>
-                </label>
-              )
-            })
-          ) : (
-            <p className="text-sm text-muted">Nenhuma tag disponível.</p>
-          )}
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button variant="secondary" onClick={() => setShowTagModal(false)}>
-            Fechar
-          </Button>
-        </div>
-      </Modal>
+        onClose={closeTagModal}
+        conversationId={conversationId}
+        selectedTagIds={selectedTagIds}
+        onToggleTag={handleToggleTag}
+      />
 
       <Modal
         open={showTransferModal}
@@ -608,11 +713,17 @@ export default function WhatsAppConversationPage() {
         description={
           <>
             Tem certeza que deseja fechar a conversa com{' '}
-            <strong>{conversation.contact.profile_name ?? conversation.contact.wa_id}</strong>?
+            <strong>{conversation.contact.profile_name ?? conversation.contact.external_contact_id}</strong>?
           </>
         }
         confirmLabel="Fechar"
         variant="danger"
+      />
+
+      <TemplateModal
+        open={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        conversationId={conversationId}
       />
     </Page>
   )

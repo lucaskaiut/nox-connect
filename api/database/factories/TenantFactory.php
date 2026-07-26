@@ -19,11 +19,19 @@ class TenantFactory extends Factory
     public function definition(): array
     {
         return [
+            'parent_id' => null,
             'name' => fake()->company(),
             'document' => Document::fakeCnpj(),
             'email' => fake()->unique()->companyEmail(),
             'phone' => fake()->numerify('419########'),
             'domain' => fake()->unique()->domainName(),
         ];
+    }
+
+    public function childOf(Tenant $parent): static
+    {
+        return $this->state(fn (): array => [
+            'parent_id' => $parent->getKey(),
+        ]);
     }
 }

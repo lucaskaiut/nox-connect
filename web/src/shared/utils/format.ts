@@ -47,3 +47,14 @@ export function getInitials(name: string): string {
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('')
 }
+
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+})
+
+export function formatCurrency(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—'
+
+  return currencyFormatter.format(Number(value))
+}

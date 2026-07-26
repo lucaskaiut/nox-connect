@@ -3,6 +3,11 @@ import type { ListParams } from '@/shared/types/api'
 export const queryKeys = {
   session: ['session'] as const,
 
+  onboarding: {
+    all: ['onboarding'] as const,
+    status: () => ['onboarding', 'status'] as const,
+  },
+
   users: {
     all: ['users'] as const,
     list: (params: ListParams) => ['users', 'list', params] as const,
@@ -30,11 +35,10 @@ export const queryKeys = {
 
   whatsapp: {
     all: ['whatsapp'] as const,
-    configs: {
-      all: ['whatsapp', 'configs'] as const,
-      list: () => ['whatsapp', 'configs', 'list'] as const,
-      detail: (id: number) => ['whatsapp', 'configs', 'detail', id] as const,
-      webhookLogs: (id: number) => ['whatsapp', 'configs', 'webhook-logs', id] as const,
+    connection: {
+      all: ['whatsapp', 'connection'] as const,
+      detail: () => ['whatsapp', 'connection', 'detail'] as const,
+      webhookLogs: () => ['whatsapp', 'connection', 'webhook-logs'] as const,
     },
     conversations: {
       all: ['whatsapp', 'conversations'] as const,
@@ -50,6 +54,31 @@ export const queryKeys = {
       all: ['whatsapp', 'kanban'] as const,
       board: () => ['whatsapp', 'kanban', 'board'] as const,
       stages: () => ['whatsapp', 'kanban', 'stages'] as const,
+    },
+    templates: {
+      all: ['whatsapp', 'templates'] as const,
+      list: (params?: Record<string, unknown>) => ['whatsapp', 'templates', 'list', params] as const,
+      detail: (templateId: string) => ['whatsapp', 'templates', 'detail', templateId] as const,
+    },
+  },
+
+  billing: {
+    all: ['billing'] as const,
+    plans: {
+      all: ['billing', 'plans'] as const,
+      list: () => ['billing', 'plans', 'list'] as const,
+      detail: (id: string) => ['billing', 'plans', 'detail', id] as const,
+      catalog: () => ['billing', 'plans', 'catalog'] as const,
+    },
+    subscription: {
+      current: () => ['billing', 'subscription'] as const,
+    },
+    gateways: {
+      list: () => ['billing', 'gateways'] as const,
+    },
+    invoices: {
+      list: () => ['billing', 'invoices', 'list'] as const,
+      detail: (id: string) => ['billing', 'invoices', 'detail', id] as const,
     },
   },
 } as const

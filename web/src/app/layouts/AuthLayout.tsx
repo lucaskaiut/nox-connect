@@ -17,9 +17,11 @@ export function AuthLayout() {
         <span className="text-lg font-semibold tracking-tight text-foreground">Nox</span>
       </div>
 
-      <Suspense fallback={<Loading />}>
-        <Outlet />
-      </Suspense>
+      <div className="flex w-full justify-center">
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
+      </div>
 
       <p className="mt-8 text-xs text-subtle">
         © {new Date().getFullYear()} Nox — Painel administrativo

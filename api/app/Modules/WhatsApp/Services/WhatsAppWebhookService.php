@@ -2,6 +2,10 @@
 
 namespace App\Modules\WhatsApp\Services;
 
+use App\Modules\Tenant\Models\Tenant;
+use App\Modules\WhatsApp\DTOs\IncomingMessageDTO;
+use App\Modules\WhatsApp\DTOs\MessageStatusUpdateDTO;
+use App\Modules\WhatsApp\DTOs\WebhookResultDTO;
 use App\Modules\WhatsApp\Enums\ConversationStatus;
 use App\Modules\WhatsApp\Enums\MessageDirection;
 use App\Modules\WhatsApp\Enums\MessageStatus;
@@ -10,212 +14,159 @@ use App\Modules\WhatsApp\Events\MessageDelivered;
 use App\Modules\WhatsApp\Events\MessageRead;
 use App\Modules\WhatsApp\Events\MessageReceived;
 use App\Modules\WhatsApp\Models\KanbanStage;
-use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppContact;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationStageMove;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
-use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 
 class WhatsAppWebhookService
 {
-    public function __construct(
-        private readonly WhatsAppCloudApi $cloudApi,
-    ) {}
-
-    public function handleWebhook(WhatsAppConfig $config, array $payload): void
+    public function handleNormalized(Tenant $tenant, WebhookResultDTO $result): void
     {
-        $entries = Arr::get($payload, 'entry', []);
+        foreach ($result->messages as $message) {
+            $this->processIncomingMessage($tenant, $message);
+        }
 
-        foreach ($entries as $entry) {
-            $changes = Arr::get($entry, 'changes', []);
-
-            foreach ($changes as $change) {
-                $value = Arr::get($change, 'value', []);
-
-                if (Arr::get($value, 'messaging_product') !== 'whatsapp') {
-                    continue;
-                }
-
-                $this->processMetadata($value);
-                $this->processMessages($config, $value);
-                $this->processStatuses($config, $value);
-            }
+        foreach ($result->statuses as $status) {
+            $this->processStatusUpdate($status);
         }
     }
 
-    private function processMetadata(array $value): void
+    private function processIncomingMessage(Tenant $tenant, IncomingMessageDTO $incoming): void
     {
-        // Optional: handle phone_number_id, display_phone_number metadata
+        $contact = $this->resolveContact($tenant, $incoming);
+        $conversation = $this->resolveConversation($tenant, $contact);
+        $messageType = MessageType::tryFrom($incoming->messageType) ?? MessageType::Unknown;
+        $messageDate = $incoming->receivedAt instanceof \DateTimeInterface
+            ? Carbon::parse($incoming->receivedAt)
+            : now();
+
+        $storedMessage = WhatsAppMessage::query()->updateOrCreate(
+            ['external_message_id' => $incoming->externalMessageId],
+            [
+                'conversation_id' => $conversation->id,
+                'direction' => MessageDirection::Inbound->value,
+                'message_type' => $messageType->value,
+                'content' => $incoming->content,
+                'media' => $incoming->media,
+                'status' => MessageStatus::Received->value,
+            ]
+        );
+
+        $conversation->update([
+            'last_message_preview' => $this->buildPreview($messageType, $incoming->content),
+            'last_message_at' => $messageDate,
+            'last_customer_message_at' => $messageDate,
+            'window_expires_at' => $messageDate->copy()->addHours(24),
+            'is_unread' => true,
+            'status' => ConversationStatus::Open->value,
+        ]);
+
+        broadcast(new MessageReceived(
+            (string) $tenant->uuid,
+            $conversation->id,
+            $storedMessage->toArray(),
+        ));
     }
 
-    private function processMessages(WhatsAppConfig $config, array $value): void
+    private function processStatusUpdate(MessageStatusUpdateDTO $status): void
     {
-        $messages = Arr::get($value, 'messages', []);
+        $message = WhatsAppMessage::query()
+            ->where('external_message_id', $status->externalMessageId)
+            ->first();
 
-        foreach ($messages as $message) {
-            if (Arr::get($message, 'type') === 'unsupported') {
-                continue;
-            }
+        if (! $message) {
+            return;
+        }
 
-            $from = Arr::get($message, 'from');
-            $waMessageId = Arr::get($message, 'id');
+        $messageStatus = match ($status->status) {
+            'sent' => MessageStatus::Sent,
+            'delivered' => MessageStatus::Delivered,
+            'read' => MessageStatus::Read,
+            'failed' => MessageStatus::Failed,
+            default => null,
+        };
 
-            if (blank($from) || blank($waMessageId)) {
-                continue;
-            }
+        if ($messageStatus === null) {
+            return;
+        }
 
-            $contact = $this->resolveContact($config, $from, $value);
-            $conversation = $this->resolveConversation($config, $contact);
-            $messageType = $this->mapMessageType(Arr::get($message, 'type', 'unknown'));
+        $occurredAt = $status->occurredAt
+            ? Carbon::parse($status->occurredAt)
+            : now();
 
-            $content = null;
-            $media = null;
+        $updates = ['status' => $messageStatus->value];
 
-            if ($messageType === MessageType::Text) {
-                $content = Arr::get($message, 'text.body');
-            } else {
-                $mediaType = $messageType->value;
-                $mediaData = Arr::get($message, $messageType->value, []);
+        if ($messageStatus === MessageStatus::Delivered) {
+            $updates['delivered_at'] = $occurredAt;
+        }
 
-                if ($mediaType === 'image' || $mediaType === 'video') {
-                    $content = Arr::get($mediaData, 'caption');
-                }
+        if ($messageStatus === MessageStatus::Read) {
+            $updates['read_at'] = $occurredAt;
+        }
 
-                $media = [
-                    'id' => Arr::get($mediaData, 'id'),
-                    'mime_type' => Arr::get($mediaData, 'mime_type'),
-                    'sha256' => Arr::get($mediaData, 'sha256'),
-                ];
-            }
+        if ($status->error !== null) {
+            $updates['metadata'] = array_merge($message->metadata ?? [], $status->error->toMetadata());
+        }
 
-            WhatsAppMessage::query()->updateOrCreate(
-                ['wa_message_id' => $waMessageId],
-                [
-                    'conversation_id' => $conversation->id,
-                    'direction' => MessageDirection::Inbound->value,
-                    'message_type' => $messageType->value,
-                    'content' => $content,
-                    'media' => $media,
-                    'status' => MessageStatus::Received->value,
-                ]
-            );
+        $message->update($updates);
 
-            $conversation->update([
-                'last_message_preview' => $this->buildPreview($messageType, $content),
-                'last_message_at' => now(),
-                'is_unread' => true,
-                'status' => ConversationStatus::Open->value,
-            ]);
+        $conversation = $message->conversation()->first();
 
-            broadcast(new MessageReceived(
-                $config->tenant_id,
+        if ($conversation && $messageStatus === MessageStatus::Delivered) {
+            broadcast(new MessageDelivered(
+                $conversation->tenantUuid(),
                 $conversation->id,
-                $message->fresh()->toArray(),
+                $status->externalMessageId,
+                $messageStatus->value,
+                $occurredAt->toIso8601String(),
+            ));
+        }
+
+        if ($conversation && $messageStatus === MessageStatus::Read) {
+            broadcast(new MessageRead(
+                $conversation->tenantUuid(),
+                $conversation->id,
+                $status->externalMessageId,
+                $messageStatus->value,
+                $occurredAt->toIso8601String(),
             ));
         }
     }
 
-    private function processStatuses(WhatsAppConfig $config, array $value): void
+    private function resolveContact(Tenant $tenant, IncomingMessageDTO $incoming): WhatsAppContact
     {
-        $statuses = Arr::get($value, 'statuses', []);
+        $profileName = $incoming->profileName ?? $incoming->externalContactId;
 
-        foreach ($statuses as $status) {
-            $waMessageId = Arr::get($status, 'id');
-            $statusType = Arr::get($status, 'status');
-
-            if (blank($waMessageId)) {
-                continue;
-            }
-
-            $message = WhatsAppMessage::query()->where('wa_message_id', $waMessageId)->first();
-
-            if (! $message) {
-                continue;
-            }
-
-            $messageStatus = match ($statusType) {
-                'sent' => MessageStatus::Sent,
-                'delivered' => MessageStatus::Delivered,
-                'read' => MessageStatus::Read,
-                'failed' => MessageStatus::Failed,
-                default => null,
-            };
-
-            if ($messageStatus === null) {
-                continue;
-            }
-
-            $updates = ['status' => $messageStatus->value];
-
-            if ($messageStatus === MessageStatus::Delivered) {
-                $updates['delivered_at'] = now();
-            }
-
-            if ($messageStatus === MessageStatus::Read) {
-                $updates['read_at'] = now();
-            }
-
-            $message->update($updates);
-
-            $conversation = $message->conversation()->first();
-
-            if ($conversation && $messageStatus === MessageStatus::Delivered) {
-                broadcast(new MessageDelivered(
-                    $conversation->tenant_id,
-                    $conversation->id,
-                    $waMessageId,
-                    $messageStatus->value,
-                    now(),
-                ));
-            }
-
-            if ($conversation && $messageStatus === MessageStatus::Read) {
-                broadcast(new MessageRead(
-                    $conversation->tenant_id,
-                    $conversation->id,
-                    $waMessageId,
-                    $messageStatus->value,
-                    now(),
-                ));
-            }
-        }
-    }
-
-    private function resolveContact(WhatsAppConfig $config, string $waId, array $value): WhatsAppContact
-    {
-        $contactInfo = collect(Arr::get($value, 'contacts', []))
-            ->firstWhere('wa_id', $waId);
-
-        $profileName = Arr::get($contactInfo, 'profile.name') ?? $waId;
-
-        return WhatsAppContact::query()->firstOrCreate(
-            ['wa_id' => $waId],
+        return WhatsAppContact::query()->withoutGlobalScopes()->firstOrCreate(
             [
-                'tenant_id' => $config->tenant_id,
+                'tenant_id' => $tenant->id,
+                'external_contact_id' => $incoming->externalContactId,
+            ],
+            [
                 'profile_name' => $profileName,
                 'display_name' => $profileName,
             ]
         );
     }
 
-    private function resolveConversation(WhatsAppConfig $config, WhatsAppContact $contact): WhatsAppConversation
+    private function resolveConversation(Tenant $tenant, WhatsAppContact $contact): WhatsAppConversation
     {
-        $conversation = WhatsAppConversation::query()
+        $conversation = WhatsAppConversation::query()->withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
             ->where('contact_id', $contact->id)
-            ->where('whatsapp_config_id', $config->id)
             ->first();
 
         if (! $conversation) {
-            $firstStage = KanbanStage::query()
-                ->where('tenant_id', $config->tenant_id)
+            $firstStage = KanbanStage::query()->withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
                 ->orderBy('sort_order')
                 ->first();
 
-            $conversation = WhatsAppConversation::query()->create([
-                'tenant_id' => $config->tenant_id,
+            $conversation = WhatsAppConversation::query()->withoutGlobalScopes()->create([
+                'tenant_id' => $tenant->id,
                 'contact_id' => $contact->id,
-                'whatsapp_config_id' => $config->id,
                 'status' => ConversationStatus::Open->value,
                 'current_stage_id' => $firstStage?->id,
                 'last_message_at' => now(),
@@ -231,11 +182,6 @@ class WhatsAppWebhookService
         }
 
         return $conversation;
-    }
-
-    private function mapMessageType(string $type): MessageType
-    {
-        return MessageType::tryFrom($type) ?? MessageType::Unknown;
     }
 
     private function buildPreview(MessageType $type, ?string $content): string

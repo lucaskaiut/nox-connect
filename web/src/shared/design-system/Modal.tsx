@@ -31,12 +31,14 @@ export function Modal({
   dismissable = true,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && dismissable) onClose()
+      if (event.key === 'Escape' && dismissable) onCloseRef.current()
     }
 
     document.addEventListener('keydown', onKeyDown)
@@ -47,7 +49,7 @@ export function Modal({
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = ''
     }
-  }, [open, onClose, dismissable])
+  }, [open, dismissable])
 
   if (!open) return null
 

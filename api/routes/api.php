@@ -3,15 +3,21 @@
 use App\Modules\ACL\Http\Controllers\RoleController;
 use App\Modules\ApiToken\Http\Controllers\ApiTokenController;
 use App\Modules\Auth\Http\Controllers\AuthController;
+use App\Modules\Billing\Http\Controllers\InvoiceController;
+use App\Modules\Billing\Http\Controllers\PaymentMethodController;
+use App\Modules\Billing\Http\Controllers\PlanController;
+use App\Modules\Billing\Http\Controllers\SubscriptionController;
 use App\Modules\Shared\Http\Controllers\FileUploadController;
 use App\Modules\Tenant\Http\Controllers\TenantController;
 use App\Modules\User\Http\Controllers\UserController;
 use App\Modules\Webhook\Http\Controllers\WebhookController;
 use App\Modules\WhatsApp\Http\Controllers\ConversationController;
 use App\Modules\WhatsApp\Http\Controllers\KanbanController;
-use App\Modules\WhatsApp\Http\Controllers\MetaWebhookController;
+use App\Modules\WhatsApp\Http\Controllers\MessageTemplateController;
 use App\Modules\WhatsApp\Http\Controllers\TagController;
-use App\Modules\WhatsApp\Http\Controllers\WhatsAppConfigController;
+use App\Modules\WhatsApp\Http\Controllers\WhatsAppConnectionController;
+use App\Modules\WhatsApp\Http\Controllers\WhatsAppWebhookController;
+use App\Modules\Onboarding\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -21,10 +27,46 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
+        Route::post('select-tenant', [AuthController::class, 'selectTenant']);
     });
 });
 
+Route::get('billing/plans/catalog', [PlanController::class, 'catalog']);
+Route::get('plans/public', [PlanController::class, 'catalog']);
+Route::get('billing/gateways', [SubscriptionController::class, 'gateways']);
+Route::get('payment-methods', [PaymentMethodController::class, 'index']);
+
+/*
+ * Pagamento e regularização ficam acessíveis mesmo com assinatura PAST_DUE/SUSPENDED.
+ * Onboarding e leitura de cobranças não exigem subscription.active.
+ */
 Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
+    Route::get('billing/subscription', [SubscriptionController::class, 'show'])->middleware('permission:subscription.read');
+    Route::get('billing/invoices', [InvoiceController::class, 'index'])->middleware('permission:invoice.read');
+    Route::get('billing/invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('permission:invoice.read');
+    Route::post('billing/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->middleware('permission:invoice.read');
+
+    Route::get('onboarding', [OnboardingController::class, 'show']);
+    Route::post('onboarding/company', [OnboardingController::class, 'completeCompany']);
+    Route::get('onboarding/whatsapp/initialize', [OnboardingController::class, 'initializeWhatsApp']);
+    Route::post('onboarding/whatsapp/complete', [OnboardingController::class, 'completeWhatsApp']);
+    Route::post('onboarding/finish', [OnboardingController::class, 'finish']);
+});
+
+Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed'])->group(function (): void {
+    Route::get('billing/plans', [PlanController::class, 'index'])->middleware('permission:plan.read');
+    Route::post('billing/plans', [PlanController::class, 'store'])->middleware('permission:plan.create');
+    Route::get('billing/plans/{plan}', [PlanController::class, 'show'])->middleware('permission:plan.read');
+    Route::match(['put', 'patch'], 'billing/plans/{plan}', [PlanController::class, 'update'])->middleware('permission:plan.update');
+    Route::delete('billing/plans/{plan}', [PlanController::class, 'destroy'])->middleware('permission:plan.delete');
+
+    Route::post('billing/subscription', [SubscriptionController::class, 'store'])->middleware('permission:subscription.update');
+    Route::post('billing/subscription/change-plan', [SubscriptionController::class, 'changePlan'])->middleware('permission:subscription.update');
+    Route::post('billing/subscription/cancel', [SubscriptionController::class, 'cancel'])->middleware('permission:subscription.update');
+    Route::post('billing/subscription/reactivate', [SubscriptionController::class, 'reactivate'])->middleware('permission:subscription.update');
+});
+
+Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subscription.active'])->group(function (): void {
     Route::get('tenant', [TenantController::class, 'show'])->middleware('permission:tenant.read');
     Route::match(['put', 'patch'], 'tenant', [TenantController::class, 'update'])->middleware('permission:tenant.update');
 
@@ -56,14 +98,11 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
 
     Route::get('whatsapp/conversations/stats', [ConversationController::class, 'stats'])->middleware('permission:whatsapp.conversation.read');
 
-    Route::get('whatsapp-configs', [WhatsAppConfigController::class, 'index'])->middleware('permission:whatsapp-config.read');
-    Route::post('whatsapp-configs', [WhatsAppConfigController::class, 'store'])->middleware('permission:whatsapp-config.create');
-    Route::get('whatsapp-configs/{config}', [WhatsAppConfigController::class, 'show'])->middleware('permission:whatsapp-config.read');
-    Route::match(['put', 'patch'], 'whatsapp-configs/{config}', [WhatsAppConfigController::class, 'update'])->middleware('permission:whatsapp-config.update');
-    Route::delete('whatsapp-configs/{config}', [WhatsAppConfigController::class, 'destroy'])->middleware('permission:whatsapp-config.delete');
-    Route::post('whatsapp-configs/{config}/test-connection', [WhatsAppConfigController::class, 'testConnection'])->middleware('permission:whatsapp-config.update');
-    Route::post('whatsapp-configs/{config}/toggle', [WhatsAppConfigController::class, 'toggle'])->middleware('permission:whatsapp-config.update');
-    Route::get('whatsapp-configs/{config}/webhook-logs', [WhatsAppConfigController::class, 'webhookLogs'])->middleware('permission:whatsapp-config.read');
+    Route::get('whatsapp/connection', [WhatsAppConnectionController::class, 'show'])->middleware('permission:whatsapp-config.read');
+    Route::post('whatsapp/connection', [WhatsAppConnectionController::class, 'connect'])->middleware('permission:whatsapp-config.create');
+    Route::delete('whatsapp/connection', [WhatsAppConnectionController::class, 'disconnect'])->middleware('permission:whatsapp-config.delete');
+    Route::post('whatsapp/connection/test', [WhatsAppConnectionController::class, 'test'])->middleware('permission:whatsapp-config.update');
+    Route::get('whatsapp/connection/webhook-logs', [WhatsAppConnectionController::class, 'webhookLogs'])->middleware('permission:whatsapp-config.read');
 
     Route::get('whatsapp/conversations', [ConversationController::class, 'index'])->middleware('permission:whatsapp.conversation.read');
     Route::get('whatsapp/conversations/{conversation}', [ConversationController::class, 'show'])->middleware('permission:whatsapp.conversation.read');
@@ -73,6 +112,8 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     Route::post('whatsapp/conversations/{conversation}/remove-assignment', [ConversationController::class, 'removeAssignment'])->middleware('permission:whatsapp.conversation.update');
     Route::post('whatsapp/conversations/{conversation}/close', [ConversationController::class, 'close'])->middleware('permission:whatsapp.conversation.update');
     Route::post('whatsapp/conversations/{conversation}/reopen', [ConversationController::class, 'reopen'])->middleware('permission:whatsapp.conversation.update');
+    Route::get('whatsapp/conversations/{conversation}/window', [ConversationController::class, 'windowStatus'])->middleware('permission:whatsapp.conversation.read');
+    Route::post('whatsapp/conversations/{conversation}/template', [ConversationController::class, 'sendTemplate'])->middleware('permission:whatsapp.conversation.update');
     Route::get('whatsapp/conversations/{conversation}/notes', [ConversationController::class, 'notes'])->middleware('permission:whatsapp.conversation.read');
     Route::post('whatsapp/conversations/{conversation}/notes', [ConversationController::class, 'storeNote'])->middleware('permission:whatsapp.conversation.update');
     Route::get('whatsapp/conversations/{conversation}/tags', [ConversationController::class, 'tags'])->middleware('permission:whatsapp.conversation.read');
@@ -84,6 +125,12 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     Route::match(['put', 'patch'], 'whatsapp/tags/{tag}', [TagController::class, 'update'])->middleware('permission:whatsapp.tag.update');
     Route::delete('whatsapp/tags/{tag}', [TagController::class, 'destroy'])->middleware('permission:whatsapp.tag.delete');
 
+    Route::get('whatsapp/templates', [MessageTemplateController::class, 'index'])->middleware('permission:whatsapp.template.read');
+    Route::post('whatsapp/templates', [MessageTemplateController::class, 'store'])->middleware('permission:whatsapp.template.create');
+    Route::get('whatsapp/templates/{templateId}', [MessageTemplateController::class, 'show'])->middleware('permission:whatsapp.template.read');
+    Route::match(['put', 'patch'], 'whatsapp/templates/{templateId}', [MessageTemplateController::class, 'update'])->middleware('permission:whatsapp.template.update');
+    Route::delete('whatsapp/templates', [MessageTemplateController::class, 'destroy'])->middleware('permission:whatsapp.template.delete');
+
     Route::get('whatsapp/kanban/board', [KanbanController::class, 'board'])->middleware('permission:whatsapp.kanban.read');
     Route::get('whatsapp/kanban/stages', [KanbanController::class, 'stages'])->middleware('permission:whatsapp.kanban.read');
     Route::post('whatsapp/kanban/stages', [KanbanController::class, 'storeStage'])->middleware('permission:whatsapp.kanban.update');
@@ -94,4 +141,4 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     Route::post('whatsapp/kanban/seed-defaults', [KanbanController::class, 'seedDefaults'])->middleware('permission:whatsapp.kanban.update');
 });
 
-Route::match(['get', 'post'], 'webhooks/whatsapp/{config}', [MetaWebhookController::class, 'receive']);
+Route::match(['get', 'post'], 'webhooks/whatsapp/{tenantUuid}', [WhatsAppWebhookController::class, 'receive']);

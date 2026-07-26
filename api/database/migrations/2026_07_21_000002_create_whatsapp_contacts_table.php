@@ -11,11 +11,13 @@ return new class extends Migration
         Schema::create('whatsapp_contacts', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
-            $table->string('wa_id')->unique();
+            $table->string('external_contact_id');
             $table->string('profile_name')->nullable();
             $table->string('display_name')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
+
+            $table->unique(['tenant_id', 'external_contact_id']);
         });
     }
 

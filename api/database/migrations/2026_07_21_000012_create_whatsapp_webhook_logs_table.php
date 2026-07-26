@@ -10,9 +10,9 @@ return new class extends Migration
     {
         Schema::create('whatsapp_webhook_logs', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('whatsapp_config_id')->constrained('whatsapp_configs')->cascadeOnDelete();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('method', 10);
-            $table->string('url')->nullable();
+            $table->text('url')->nullable();
             $table->json('request_headers')->nullable();
             $table->json('request_payload')->nullable();
             $table->unsignedSmallInteger('response_status')->nullable();
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->unsignedInteger('duration_ms')->nullable();
             $table->timestamps();
 
-            $table->index(['whatsapp_config_id', 'created_at']);
+            $table->index(['tenant_id', 'created_at']);
         });
     }
 

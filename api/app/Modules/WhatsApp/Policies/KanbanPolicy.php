@@ -3,6 +3,7 @@
 namespace App\Modules\WhatsApp\Policies;
 
 use App\Modules\ACL\Enums\Permission;
+use App\Modules\Tenant\Support\TenantAuthorization;
 use App\Modules\User\Models\User;
 use App\Modules\WhatsApp\Models\KanbanStage;
 
@@ -20,13 +21,13 @@ class KanbanPolicy
 
     public function update(User $user, KanbanStage $stage): bool
     {
-        return $user->tenant_id === $stage->tenant_id
+        return TenantAuthorization::matchesCurrentTenant((int) $stage->tenant_id)
             && $user->hasPermission(Permission::WHATSAPP_KANBAN_UPDATE);
     }
 
     public function delete(User $user, KanbanStage $stage): bool
     {
-        return $user->tenant_id === $stage->tenant_id
+        return TenantAuthorization::matchesCurrentTenant((int) $stage->tenant_id)
             && $user->hasPermission(Permission::WHATSAPP_KANBAN_UPDATE);
     }
 }

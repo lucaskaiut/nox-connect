@@ -1,14 +1,25 @@
 import { z } from 'zod'
 
-export const whatsappConfigSchema = z.object({
-  name: z.string().min(1, 'Informe um nome para identificar a conexão'),
-  waba_id: z.string().min(1, 'Informe o WhatsApp Business Account ID'),
-  phone_number_id: z.string().min(1, 'Informe o Phone Number ID'),
-  access_token: z.string().min(1, 'Informe o Access Token'),
-  verify_token: z.string().optional(),
+/** Onboarding Meta: account_id + channel_id */
+export const whatsappMetaConnectSchema = z.object({
+  account_id: z.string().min(1, 'Informe o ID da conta comercial'),
+  channel_id: z.string().min(1, 'Informe o ID do canal'),
+  webhook_verify_token: z.string().optional(),
 })
 
-export type WhatsAppConfigFormValues = z.infer<typeof whatsappConfigSchema>
+/** Onboarding D-API: session_id opcional (vazio = cria sessão nova) */
+export const whatsappDApiConnectSchema = z.object({
+  session_id: z.string().optional(),
+  connection_id: z.string().optional(),
+  webhook_verify_token: z.string().optional(),
+})
+
+/** @deprecated use whatsappMetaConnectSchema / whatsappDApiConnectSchema */
+export const whatsappConnectSchema = whatsappMetaConnectSchema
+
+export type WhatsAppMetaConnectFormValues = z.infer<typeof whatsappMetaConnectSchema>
+export type WhatsAppDApiConnectFormValues = z.infer<typeof whatsappDApiConnectSchema>
+export type WhatsAppConnectFormValues = WhatsAppMetaConnectFormValues | WhatsAppDApiConnectFormValues
 
 export const whatsappTagSchema = z.object({
   name: z.string().min(1, 'Informe o nome da tag'),

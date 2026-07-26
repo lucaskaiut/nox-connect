@@ -2,6 +2,7 @@ import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { AuthGuard } from '@/app/guards/AuthGuard'
 import { GuestGuard } from '@/app/guards/GuestGuard'
+import { OnboardingGuard } from '@/app/guards/OnboardingGuard'
 import { PermissionGuard } from '@/app/guards/PermissionGuard'
 import { AppLayout } from '@/app/layouts/AppLayout'
 import { AuthLayout } from '@/app/layouts/AuthLayout'
@@ -10,6 +11,7 @@ import { NotFoundPage } from './NotFoundPage'
 
 const LoginPage = lazy(() => import('@/modules/auth/pages/LoginPage'))
 const RegisterPage = lazy(() => import('@/modules/auth/pages/RegisterPage'))
+const PaymentPendingPage = lazy(() => import('@/modules/auth/pages/PaymentPendingPage'))
 const DashboardPage = lazy(() => import('@/modules/dashboard/pages/DashboardPage'))
 const UsersListPage = lazy(() => import('@/modules/users/pages/UsersListPage'))
 const UserCreatePage = lazy(() => import('@/modules/users/pages/UserCreatePage'))
@@ -22,14 +24,20 @@ const ApiTokenCreatePage = lazy(() => import('@/modules/api-tokens/pages/ApiToke
 const WebhooksListPage = lazy(() => import('@/modules/webhooks/pages/WebhooksListPage'))
 const WebhookCreatePage = lazy(() => import('@/modules/webhooks/pages/WebhookCreatePage'))
 const WebhookEditPage = lazy(() => import('@/modules/webhooks/pages/WebhookEditPage'))
-const WhatsAppConfigsListPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigListPage'))
-const WhatsAppConfigCreatePage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigCreatePage'))
-const WhatsAppConfigEditPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConfigEditPage'))
-const WhatsAppInboxPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppInboxPage'))
+const WhatsAppConnectionPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConnectionPage'))
+const WhatsAppChatPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppChatPage'))
 const WhatsAppConversationPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppConversationPage'))
 const WhatsAppKanbanPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppKanbanPage'))
 const WhatsAppKanbanStagesPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppKanbanStagesPage'))
+const WhatsAppTagsListPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppTagsListPage'))
+const WhatsAppTemplatesListPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppTemplatesListPage'))
 const WhatsAppDashboardPage = lazy(() => import('@/modules/whatsapp/pages/WhatsAppDashboardPage'))
+const OnboardingPage = lazy(() => import('@/modules/onboarding/pages/OnboardingPage'))
+const PlansListPage = lazy(() => import('@/modules/billing/pages/PlansListPage'))
+const PlanCreatePage = lazy(() => import('@/modules/billing/pages/PlanCreatePage'))
+const PlanEditPage = lazy(() => import('@/modules/billing/pages/PlanEditPage'))
+const SubscriptionPage = lazy(() => import('@/modules/billing/pages/SubscriptionPage'))
+const InvoicesListPage = lazy(() => import('@/modules/billing/pages/InvoicesListPage'))
 export const router = createBrowserRouter([
   {
     element: <GuestGuard />,
@@ -47,8 +55,19 @@ export const router = createBrowserRouter([
     element: <AuthGuard />,
     children: [
       {
-        element: <AppLayout />,
+        path: '/onboarding',
+        element: <OnboardingPage />,
+      },
+      {
+        path: '/pagamento',
+        element: <PaymentPendingPage />,
+      },
+      {
+        element: <OnboardingGuard />,
         children: [
+          {
+            element: <AppLayout />,
+            children: [
           { path: '/', element: <Navigate to="/dashboard" replace /> },
           { path: '/dashboard', element: <DashboardPage /> },
           {
@@ -151,7 +170,7 @@ export const router = createBrowserRouter([
             path: '/whatsapp/inbox',
             element: (
               <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
-                <WhatsAppInboxPage />
+                <WhatsAppChatPage />
               </PermissionGuard>
             ),
           },
@@ -180,28 +199,70 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: '/whatsapp/configs',
+            path: '/whatsapp/tags',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_TAG_READ}>
+                <WhatsAppTagsListPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/templates',
+            element: (
+              <PermissionGuard permission={Permission.WHATSAPP_TEMPLATE_READ}>
+                <WhatsAppTemplatesListPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/whatsapp/connection',
             element: (
               <PermissionGuard permission={Permission.WHATSAPP_CONFIG_READ}>
-                <WhatsAppConfigsListPage />
+                <WhatsAppConnectionPage />
               </PermissionGuard>
             ),
           },
           {
-            path: '/whatsapp/configs/create',
+            path: '/billing/plans',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_CREATE}>
-                <WhatsAppConfigCreatePage />
+              <PermissionGuard permission={Permission.PLAN_READ} requiresUmbrella>
+                <PlansListPage />
               </PermissionGuard>
             ),
           },
           {
-            path: '/whatsapp/configs/:id/edit',
+            path: '/billing/plans/create',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_UPDATE}>
-                <WhatsAppConfigEditPage />
+              <PermissionGuard permission={Permission.PLAN_CREATE} requiresUmbrella>
+                <PlanCreatePage />
               </PermissionGuard>
             ),
+          },
+          {
+            path: '/billing/plans/:id/edit',
+            element: (
+              <PermissionGuard permission={Permission.PLAN_UPDATE} requiresUmbrella>
+                <PlanEditPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/billing/subscription',
+            element: (
+              <PermissionGuard permission={Permission.SUBSCRIPTION_READ}>
+                <SubscriptionPage />
+              </PermissionGuard>
+            ),
+          },
+          {
+            path: '/billing/invoices',
+            element: (
+              <PermissionGuard permission={Permission.INVOICE_READ}>
+                <InvoicesListPage />
+              </PermissionGuard>
+            ),
+          },
+            ],
           },
         ],
       },

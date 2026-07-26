@@ -20,6 +20,7 @@
     "@tiptap/starter-kit": "^3.28.0",
     "axios": "^1.18.1",
     "clsx": "^2.1.1",
+    "d-api-sdk": "^1.1.0",
     "laravel-echo": "^2.4.0",
     "lucide-react": "^1.25.0",
     "pusher-js": "^8.5.0",

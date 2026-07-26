@@ -29,4 +29,19 @@ trait BelongsToTenant
     {
         return $this->belongsTo(Tenant::class);
     }
+
+    /**
+     * Public tenant identifier used by the API and realtime channels (UUID),
+     * not the internal numeric foreign key.
+     */
+    public function tenantUuid(): string
+    {
+        if ($this->relationLoaded('tenant') && $this->tenant) {
+            return (string) $this->tenant->uuid;
+        }
+
+        $uuid = Tenant::query()->whereKey($this->getAttribute('tenant_id'))->value('uuid');
+
+        return (string) $uuid;
+    }
 }

@@ -17,7 +17,7 @@ class ConversationResource extends JsonResource
             'id' => $this->id,
             'contact' => [
                 'id' => $this->contact->id,
-                'wa_id' => $this->contact->wa_id,
+                'external_contact_id' => $this->contact->external_contact_id,
                 'profile_name' => $this->contact->profile_name,
                 'display_name' => $this->contact->display_name,
             ],
@@ -25,6 +25,8 @@ class ConversationResource extends JsonResource
             'last_message_preview' => $this->last_message_preview,
             'last_message_at' => $this->last_message_at?->toIso8601String(),
             'is_unread' => $this->is_unread,
+            'is_window_open' => $this->isWindowOpen(),
+            'window_expires_at' => $this->window_expires_at?->toIso8601String(),
             'current_assignment' => $this->whenLoaded('currentAssignment', function () {
                 $assignment = $this->currentAssignment;
 

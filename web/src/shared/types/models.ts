@@ -14,6 +14,7 @@ export interface User {
   email: string
   phone: string | null
   document: string | null
+  is_master: boolean
   roles?: Role[]
   created_at: string | null
   updated_at: string | null
@@ -26,8 +27,18 @@ export interface Tenant {
   email: string
   phone: string | null
   domain: string
+  is_umbrella: boolean
+  onboarding_completed?: boolean
+  needs_onboarding?: boolean
   created_at: string | null
   updated_at: string | null
+}
+
+export interface AvailableTenant {
+  id: string
+  name: string
+  is_home?: boolean
+  is_umbrella?: boolean
 }
 
 export interface ApiToken {
@@ -69,23 +80,92 @@ export interface Session {
   tenant: Tenant
   roles: Role[]
   permissions: Permission[]
+  is_master: boolean
+  available_tenants: AvailableTenant[]
+  onboarding?: {
+    required: boolean
+    completed: boolean
+    company_completed: boolean
+    whatsapp_completed: boolean
+    current_step: string
+    completed_at: string | null
+    provider: string
+  } | null
 }
 
-export interface WhatsAppConfig {
-  id: number
+export interface Plan {
+  id: string
   name: string
-  waba_id: string
-  phone_number_id: string
-  is_active: boolean
-  webhook_url: string | null
-  last_connected_at: string | null
+  description: string | null
+  price: string
+  recurrence_value: number
+  recurrence_unit: 'days' | 'weeks' | 'months' | 'years'
+  free_trial_days: number
+  trial_days?: number
+  is_trial?: boolean
+  requires_immediate_payment?: boolean
+  active: boolean
   created_at: string | null
   updated_at: string | null
 }
 
+export interface SubscriptionEvent {
+  id: number
+  event: string
+  payload: Record<string, unknown> | null
+  created_at: string | null
+}
+
+export interface Subscription {
+  id: string
+  status: 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELLED'
+  payment_gateway: string | null
+  started_at: string | null
+  trial_ends_at: string | null
+  last_billed_at: string | null
+  next_billing_at: string | null
+  cancelled_at: string | null
+  plan?: Plan
+  events?: SubscriptionEvent[]
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface PaymentGatewayOption {
+  key: string
+  label: string
+  payment_method: string
+}
+
+export interface Invoice {
+  id: string
+  gateway: string | null
+  amount: string
+  status: 'PENDING' | 'PROCESSING' | 'PAID' | 'EXPIRED' | 'FAILED' | 'CANCELLED'
+  payment_method: 'pix' | 'credit_card' | 'boleto' | null
+  external_id: string | null
+  pix_code: string | null
+  pix_qrcode: string | null
+  awaiting_payment_method?: boolean
+  due_date: string | null
+  paid_at: string | null
+  expires_at: string | null
+  subscription?: Subscription
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface WhatsAppConnection {
+  provider: string
+  connected: boolean
+  status_message: string | null
+  settings: Record<string, unknown>
+  webhook_url: string
+}
+
 export interface WhatsAppContact {
   id: number
-  wa_id: string
+  external_contact_id: string
   profile_name: string | null
   display_name: string | null
 }
@@ -97,9 +177,10 @@ export interface WhatsAppMessage {
   message_type: string
   content: string | null
   media: Record<string, unknown> | null
-  wa_message_id: string | null
+  external_message_id: string | null
   status: string
   metadata: Record<string, unknown> | null
+  sender_name: string | null
   delivered_at: string | null
   read_at: string | null
   created_at: string | null
@@ -144,6 +225,8 @@ export interface WhatsAppConversation {
   last_message_preview: string | null
   last_message_at: string | null
   is_unread: boolean
+  is_window_open: boolean
+  window_expires_at: string | null
   current_assignment: WhatsAppAssignment | null
   tags: WhatsAppTag[]
   current_stage: { id: number; name: string; color: string | null } | null
@@ -157,4 +240,39 @@ export interface WhatsAppConversation {
 export interface KanbanColumn {
   stage: KanbanStage
   conversations: WhatsAppConversation[]
+}
+
+export interface MessageTemplate {
+  id: string
+  name: string | null
+  language: string | null
+  category: string | null
+  sub_category: string | null
+  status: string | null
+  components: Record<string, unknown>[] | null
+  parameter_format: string | null
+  display_format: string | null
+  quality_score: Record<string, unknown> | null
+  health_status: Record<string, unknown> | null
+  rejected_reason: string | null
+  source: string | null
+  message_send_ttl_seconds: number | null
+  cta_url_link_tracking_opted_out: boolean | null
+  allow_category_change: boolean | null
+  is_primary_device_delivery_only: boolean | null
+  is_sms_fallback_enabled: boolean | null
+  library_template_name: string | null
+  previous_category: string | null
+  correct_category: string | null
+  last_updated_time: string | null
+  created_at: string | null
+}
+
+export interface MessageTemplatesResponse {
+  data: MessageTemplate[]
+  paging: {
+    cursors: { before: string; after: string }
+    next?: string
+    previous?: string
+  } | null
 }

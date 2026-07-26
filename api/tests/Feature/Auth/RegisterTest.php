@@ -107,6 +107,35 @@ class RegisterTest extends TestCase
         ]))->assertUnprocessable()->assertJsonValidationErrors(['user.email']);
     }
 
+    public function test_first_tenant_is_root_and_next_tenants_use_it_as_parent(): void
+    {
+        $this->postJson('/api/auth/register', $this->payload())->assertCreated();
+
+        $firstTenantId = $this->getTenantId();
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $firstTenantId,
+            'parent_id' => null,
+        ]);
+
+        $this->postJson('/api/auth/register', $this->payload([
+            'tenant' => [
+                'name' => 'Filial',
+                'document' => '04.252.011/0001-10',
+                'email' => 'contato@filial.com',
+                'domain' => 'filial.com.br',
+            ],
+            'user' => [
+                'email' => 'admin@filial.com',
+            ],
+        ]))->assertCreated();
+
+        $this->assertDatabaseHas('tenants', [
+            'domain' => 'filial.com.br',
+            'parent_id' => $firstTenantId,
+        ]);
+    }
+
     public function test_error_response_is_standardized(): void
     {
         $this->postJson('/api/auth/register', [])

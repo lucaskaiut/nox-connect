@@ -8,17 +8,17 @@ use App\Modules\WhatsApp\Enums\MessageStatus;
 use App\Modules\WhatsApp\Events\ConversationAssigned;
 use App\Modules\WhatsApp\Events\ConversationClosed;
 use App\Modules\WhatsApp\Events\ConversationTransferred;
-use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationAssignment;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use App\Modules\User\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 
 class ConversationService
 {
-    public function list(array $filters = []): LengthAwarePaginator
+    public function list(array $filters = []): CursorPaginator
     {
         $query = WhatsAppConversation::query()
             ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
@@ -56,12 +56,12 @@ class ConversationService
                 $q->whereHas('contact', function ($q) use ($search): void {
                     $q->where('profile_name', 'like', "%{$search}%")
                         ->orWhere('display_name', 'like', "%{$search}%")
-                        ->orWhere('wa_id', 'like', "%{$search}%");
+                        ->orWhere('external_contact_id', 'like', "%{$search}%");
                 });
             });
         }
 
-        return $query->paginate($filters['per_page'] ?? 20);
+        return $query->cursorPaginate($filters['per_page'] ?? 20);
     }
 
     public function find(int $id): WhatsAppConversation
@@ -94,7 +94,7 @@ class ConversationService
         $user = User::query()->where('uuid', $userId)->first();
 
         broadcast(new ConversationAssigned(
-            $conversation->tenant_id,
+            $conversation->tenantUuid(),
             $conversation->id,
             $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
         ));
@@ -110,7 +110,7 @@ class ConversationService
         $user = User::query()->where('uuid', $userId)->first();
 
         broadcast(new ConversationTransferred(
-            $conversation->tenant_id,
+            $conversation->tenantUuid(),
             $conversation->id,
             $fromUserId,
             $user ? ['id' => $user->uuid, 'name' => $user->name] : ['id' => $userId, 'name' => 'Desconhecido'],
@@ -129,7 +129,7 @@ class ConversationService
     {
         $conversation->update(['status' => ConversationStatus::Closed->value]);
 
-        broadcast(new ConversationClosed($conversation->tenant_id, $conversation->id));
+        broadcast(new ConversationClosed($conversation->tenantUuid(), $conversation->id));
     }
 
     public function reopen(WhatsAppConversation $conversation): void

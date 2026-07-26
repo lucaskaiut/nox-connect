@@ -14,7 +14,7 @@ class WhatsAppContact extends Model
 
     protected $fillable = [
         'tenant_id',
-        'wa_id',
+        'external_contact_id',
         'profile_name',
         'display_name',
         'metadata',

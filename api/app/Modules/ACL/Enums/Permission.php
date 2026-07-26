@@ -42,6 +42,21 @@ enum Permission: string
     case WHATSAPP_KANBAN_READ = 'whatsapp.kanban.read';
     case WHATSAPP_KANBAN_UPDATE = 'whatsapp.kanban.update';
 
+    case WHATSAPP_TEMPLATE_CREATE = 'whatsapp.template.create';
+    case WHATSAPP_TEMPLATE_READ = 'whatsapp.template.read';
+    case WHATSAPP_TEMPLATE_UPDATE = 'whatsapp.template.update';
+    case WHATSAPP_TEMPLATE_DELETE = 'whatsapp.template.delete';
+
+    case PLAN_CREATE = 'plan.create';
+    case PLAN_READ = 'plan.read';
+    case PLAN_UPDATE = 'plan.update';
+    case PLAN_DELETE = 'plan.delete';
+
+    case SUBSCRIPTION_READ = 'subscription.read';
+    case SUBSCRIPTION_UPDATE = 'subscription.update';
+
+    case INVOICE_READ = 'invoice.read';
+
     /**
      * @return list<string>
      */

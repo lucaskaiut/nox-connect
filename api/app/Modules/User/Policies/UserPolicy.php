@@ -3,6 +3,7 @@
 namespace App\Modules\User\Policies;
 
 use App\Modules\ACL\Enums\Permission;
+use App\Modules\Tenant\Support\TenantAuthorization;
 use App\Modules\User\Models\User;
 
 class UserPolicy
@@ -14,7 +15,7 @@ class UserPolicy
 
     public function view(User $user, User $model): bool
     {
-        return $this->sameTenant($user, $model)
+        return $this->sameTenant($model)
             && $user->hasPermission(Permission::USER_READ);
     }
 
@@ -25,19 +26,19 @@ class UserPolicy
 
     public function update(User $user, User $model): bool
     {
-        return $this->sameTenant($user, $model)
+        return $this->sameTenant($model)
             && $user->hasPermission(Permission::USER_UPDATE);
     }
 
     public function delete(User $user, User $model): bool
     {
-        return $this->sameTenant($user, $model)
+        return $this->sameTenant($model)
             && $user->isNot($model)
             && $user->hasPermission(Permission::USER_DELETE);
     }
 
-    private function sameTenant(User $user, User $model): bool
+    private function sameTenant(User $model): bool
     {
-        return $user->tenant_id === $model->tenant_id;
+        return TenantAuthorization::matchesCurrentTenant((int) $model->tenant_id);
     }
 }

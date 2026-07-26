@@ -10,14 +10,19 @@ export function useTenantChannel(tenantId: number | string | undefined) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (tenantId == null) return
+    if (tenantId == null || tenantId === '') return
 
-    const channel = echo.private(`tenant.${tenantId}`)
+    const name = `tenant.${tenantId}`
+    const channel = echo.private(name)
 
     setupTenantChannelListeners(channel, queryClient)
 
+    channel.error((error: unknown) => {
+      console.error('[echo] tenant channel error', name, error)
+    })
+
     return () => {
-      echo.leave(`tenant.${tenantId}`)
+      echo.leave(name)
     }
   }, [tenantId, queryClient])
 }
@@ -28,12 +33,17 @@ export function useConversationChannel(conversationId: number | undefined) {
   useEffect(() => {
     if (conversationId == null) return
 
-    const channel = echo.private(`conversation.${conversationId}`)
+    const name = `conversation.${conversationId}`
+    const channel = echo.private(name)
 
     setupConversationChannelListeners(channel, queryClient)
 
+    channel.error((error: unknown) => {
+      console.error('[echo] conversation channel error', name, error)
+    })
+
     return () => {
-      echo.leave(`conversation.${conversationId}`)
+      echo.leave(name)
     }
   }, [conversationId, queryClient])
 }

@@ -13,6 +13,22 @@ export interface PaginationMeta {
   total: number
 }
 
+export interface CursorPaginationMeta {
+  path: string
+  per_page: number
+  next_cursor: string | null
+  prev_cursor: string | null
+  next_page_url: string | null
+  prev_page_url: string | null
+}
+
+export interface CursorPaginatedResponse<T> {
+  success: boolean
+  message: string | null
+  data: T[]
+  meta: CursorPaginationMeta
+}
+
 export interface PaginatedResponse<T> {
   success: boolean
   message: string | null

@@ -2,7 +2,7 @@
 
 namespace App\Modules\WhatsApp\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -17,7 +17,7 @@ class MessageDelivered implements ShouldBroadcastNow
     public function __construct(
         public readonly string $tenantId,
         public readonly int $conversationId,
-        public readonly string $waMessageId,
+        public readonly string $externalMessageId,
         public readonly string $status,
         public readonly string $deliveredAt,
     ) {}
@@ -25,7 +25,7 @@ class MessageDelivered implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new Channel('private-conversation.' . $this->conversationId),
+            new PrivateChannel('conversation.' . $this->conversationId),
         ];
     }
 
@@ -38,7 +38,7 @@ class MessageDelivered implements ShouldBroadcastNow
     {
         return [
             'conversation_id' => $this->conversationId,
-            'wa_message_id' => $this->waMessageId,
+            'external_message_id' => $this->externalMessageId,
             'status' => $this->status,
             'delivered_at' => $this->deliveredAt,
         ];

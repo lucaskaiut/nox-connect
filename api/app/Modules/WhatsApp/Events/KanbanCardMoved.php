@@ -2,7 +2,7 @@
 
 namespace App\Modules\WhatsApp\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -25,7 +25,7 @@ class KanbanCardMoved implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new Channel('private-tenant.' . $this->tenantId),
+            new PrivateChannel('tenant.' . $this->tenantId),
         ];
     }
 

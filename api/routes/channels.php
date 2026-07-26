@@ -4,8 +4,8 @@ use App\Modules\ACL\Enums\Permission;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('tenant.{tenantId}', function ($user, $tenantId) {
-    return (string) $user->tenant_id === (string) $tenantId;
+Broadcast::channel('tenant.{tenantUuid}', function ($user, $tenantUuid) {
+    return (string) $user->tenantUuid() === (string) $tenantUuid;
 });
 
 Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {

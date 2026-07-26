@@ -2,6 +2,7 @@ import axios from 'axios'
 import { API_BASE_URL } from '@/shared/api/base-url'
 import { parseApiError } from '@/shared/api/errors'
 import { useSessionStore } from '@/shared/stores/session.store'
+import { useTenantContextStore } from '@/shared/stores/tenant.store'
 import { toast } from '@/shared/stores/toast.store'
 
 const GUEST_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/me']
@@ -22,6 +23,24 @@ export const http = axios.create({
   },
 })
 
+http.interceptors.request.use((config) => {
+  const { isMaster, availableTenants } = useSessionStore.getState()
+  const { selectedTenantId } = useTenantContextStore.getState()
+  const homeTenantId = availableTenants.find((tenant) => tenant.is_home)?.id
+
+  // Parent/home selecionado → não envia X-Tenant-Id (contexto do próprio tenant).
+  const shouldSendTenantHeader =
+    isMaster && Boolean(selectedTenantId) && selectedTenantId !== homeTenantId
+
+  if (shouldSendTenantHeader && selectedTenantId) {
+    config.headers.set('X-Tenant-Id', selectedTenantId)
+  } else {
+    config.headers.delete('X-Tenant-Id')
+  }
+
+  return config
+})
+
 http.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -34,6 +53,7 @@ http.interceptors.response.use(
 
       if (store.status === 'authenticated') {
         store.setGuest()
+        useTenantContextStore.getState().clearSelectedTenantId()
         toast.warning('Sessão expirada', 'Faça login novamente para continuar.')
       }
     }

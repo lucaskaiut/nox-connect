@@ -3,9 +3,7 @@
 namespace App\Modules\WhatsApp\Models;
 
 use App\Modules\Tenant\Models\Concerns\BelongsToTenant;
-use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -20,11 +18,12 @@ class WhatsAppConversation extends Model
     protected $fillable = [
         'tenant_id',
         'contact_id',
-        'whatsapp_config_id',
         'status',
         'current_stage_id',
         'last_message_preview',
         'last_message_at',
+        'window_expires_at',
+        'last_customer_message_at',
         'is_unread',
     ];
 
@@ -32,18 +31,21 @@ class WhatsAppConversation extends Model
     {
         return [
             'last_message_at' => 'datetime',
+            'window_expires_at' => 'datetime',
+            'last_customer_message_at' => 'datetime',
             'is_unread' => 'boolean',
         ];
     }
 
-    public function contact(): BelongsTo
+    public function isWindowOpen(): bool
     {
-        return $this->belongsTo(WhatsAppContact::class, 'contact_id');
+        return $this->window_expires_at !== null
+            && $this->window_expires_at->isFuture();
     }
 
-    public function config(): BelongsTo
+    public function contact(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(WhatsAppConfig::class, 'whatsapp_config_id');
+        return $this->belongsTo(WhatsAppContact::class, 'contact_id');
     }
 
     public function messages(): HasMany

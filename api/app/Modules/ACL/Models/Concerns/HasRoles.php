@@ -11,7 +11,9 @@ trait HasRoles
 {
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class, 'user_roles');
+        // Roles pertencem ao tenant "home" do usuário. Masters operando
+        // filhos não devem perder permissões pelo TenantScope ativo.
+        return $this->belongsToMany(Role::class, 'user_roles')->withoutTenancy();
     }
 
     public function assignRole(Role $role): void

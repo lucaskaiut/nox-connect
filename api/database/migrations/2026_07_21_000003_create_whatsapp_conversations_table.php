@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('contact_id')->constrained('whatsapp_contacts')->cascadeOnDelete();
-            $table->foreignId('whatsapp_config_id')->constrained('whatsapp_configs')->cascadeOnDelete();
             $table->string('status')->default('open');
             $table->string('last_message_preview')->nullable();
             $table->timestamp('last_message_at')->nullable();
@@ -21,6 +20,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['tenant_id', 'status']);
+            $table->unique(['tenant_id', 'contact_id']);
         });
     }
 

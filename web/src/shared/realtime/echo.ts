@@ -1,7 +1,6 @@
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
-import axios from 'axios'
-import { API_BASE_URL } from '@/shared/api/base-url'
+import { http } from '@/shared/api/http'
 
 declare global {
   interface Window {
@@ -21,23 +20,30 @@ export const echo = new Echo({
   wssPort: wsPort,
   forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
   enabledTransports: ['ws', 'wss'],
+  // Broadcast::routes() lives at /broadcasting/auth (outside /api).
+  // In dev this path must be proxied by Vite — see vite.config.ts.
   authorizer: (channel) => ({
     authorize: (socketId, callback) => {
-      axios
+      http
         .post(
-          `${API_BASE_URL}/broadcasting/auth`,
+          '/broadcasting/auth',
           { socket_id: socketId, channel_name: channel.name },
           {
-            withCredentials: true,
-            withXSRFToken: true,
-            headers: {
-              Accept: 'application/json',
-              'X-Requested-With': 'XMLHttpRequest',
-            },
+            // http baseURL is `${API_BASE_URL}/api` — override to hit /broadcasting/auth
+            baseURL: import.meta.env.VITE_API_BASE_URL || '',
           },
         )
-        .then((response) => callback(null, response.data))
-        .catch(() => callback(new Error('Channel authorization failed'), { auth: '' }))
+        .then((response) => {
+          if (!response.data?.auth) {
+            callback(new Error('Channel authorization missing auth signature'), { auth: '' })
+            return
+          }
+          callback(null, response.data)
+        })
+        .catch((error) => {
+          console.error('[echo] channel auth failed', channel.name, error)
+          callback(new Error('Channel authorization failed'), { auth: '' })
+        })
     },
   }),
 })

@@ -23,6 +23,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'document' => $this->document,
+            'is_master' => (bool) $this->is_master,
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

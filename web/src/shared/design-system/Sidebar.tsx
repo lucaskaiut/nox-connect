@@ -43,15 +43,18 @@ export function SidebarItem({
   icon: Icon,
   label,
   onNavigate,
+  end = false,
 }: {
   to: string
   icon: LucideIcon
   label: string
   onNavigate?: () => void
+  end?: boolean
 }) {
   return (
     <NavLink
       to={to}
+      end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(

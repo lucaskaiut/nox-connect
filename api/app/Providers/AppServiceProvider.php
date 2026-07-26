@@ -4,6 +4,12 @@ namespace App\Providers;
 
 use App\Modules\ACL\Models\Role;
 use App\Modules\ACL\Policies\RolePolicy;
+use App\Modules\Billing\Models\Invoice;
+use App\Modules\Billing\Models\Plan;
+use App\Modules\Billing\Models\Subscription;
+use App\Modules\Billing\Policies\InvoicePolicy;
+use App\Modules\Billing\Policies\PlanPolicy;
+use App\Modules\Billing\Policies\SubscriptionPolicy;
 use App\Modules\Tenant\Models\Tenant;
 use App\Modules\Tenant\Policies\TenantPolicy;
 use App\Modules\User\Models\User;
@@ -11,13 +17,11 @@ use App\Modules\User\Policies\UserPolicy;
 use App\Modules\Webhook\Models\Webhook;
 use App\Modules\Webhook\Policies\WebhookPolicy;
 use App\Modules\WhatsApp\Models\KanbanStage;
-use App\Modules\WhatsApp\Models\WhatsAppConfig;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppTag;
 use App\Modules\WhatsApp\Policies\ConversationPolicy;
 use App\Modules\WhatsApp\Policies\KanbanPolicy;
 use App\Modules\WhatsApp\Policies\TagPolicy;
-use App\Modules\WhatsApp\Policies\WhatsAppConfigPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
@@ -64,10 +68,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Webhook::class, WebhookPolicy::class);
-        Gate::policy(WhatsAppConfig::class, WhatsAppConfigPolicy::class);
         Gate::policy(WhatsAppConversation::class, ConversationPolicy::class);
         Gate::policy(WhatsAppTag::class, TagPolicy::class);
         Gate::policy(KanbanStage::class, KanbanPolicy::class);
+        Gate::policy(Plan::class, PlanPolicy::class);
+        Gate::policy(Subscription::class, SubscriptionPolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
     }
 
     private function configureBroadcasting(): void

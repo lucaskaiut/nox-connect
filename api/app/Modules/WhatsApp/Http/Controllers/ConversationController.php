@@ -5,13 +5,16 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Modules\Shared\Http\Controllers\ApiController;
 use App\Modules\WhatsApp\Http\Requests\AssignConversationRequest;
 use App\Modules\WhatsApp\Http\Requests\SendMessageRequest;
+use App\Modules\WhatsApp\Http\Requests\SendTemplateRequest;
 use App\Modules\WhatsApp\Http\Requests\StoreNoteRequest;
 use App\Modules\WhatsApp\Http\Resources\ConversationResource;
 use App\Modules\WhatsApp\Http\Resources\MessageResource;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppNote;
 use App\Modules\WhatsApp\Services\ConversationService;
+use App\Modules\WhatsApp\Services\ConversationWindowService;
 use App\Modules\WhatsApp\Services\MessageService;
+use App\Modules\WhatsApp\Services\TemplateMessageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -20,6 +23,8 @@ class ConversationController extends ApiController
     public function __construct(
         private readonly ConversationService $service,
         private readonly MessageService $messageService,
+        private readonly ConversationWindowService $windowService,
+        private readonly TemplateMessageService $templateMessageService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -49,6 +54,10 @@ class ConversationController extends ApiController
     public function sendMessage(SendMessageRequest $request, WhatsAppConversation $conversation): JsonResponse
     {
         $this->authorize('update', $conversation);
+
+        if (! $this->windowService->isOpen($conversation)) {
+            return $this->success(null, 'A janela de atendimento do WhatsApp está encerrada. Utilize um template para iniciar uma nova conversa.', 400);
+        }
 
         $message = $this->messageService->sendText($conversation, $request->validated('content'));
 
@@ -149,5 +158,36 @@ class ConversationController extends ApiController
         $this->authorize('viewAny', WhatsAppConversation::class);
 
         return $this->success($this->service->getStats());
+    }
+
+    public function windowStatus(WhatsAppConversation $conversation): JsonResponse
+    {
+        $this->authorize('view', $conversation);
+
+        return $this->success([
+            'window_open' => $this->windowService->isOpen($conversation),
+            'window_expires_at' => $conversation->window_expires_at?->toIso8601String(),
+            'remaining_seconds' => $this->windowService->remainingSeconds($conversation),
+        ]);
+    }
+
+    public function sendTemplate(SendTemplateRequest $request, WhatsAppConversation $conversation): JsonResponse
+    {
+        $this->authorize('update', $conversation);
+
+        $message = $this->templateMessageService->send(
+            $conversation,
+            $request->validated('template_name'),
+            $request->validated('language'),
+            $request->validated('variables', []),
+        );
+
+        if ($message->status === 'failed') {
+            $error = $message->metadata['error_message'] ?? 'Erro ao enviar template.';
+
+            return $this->success(MessageResource::make($message), $error, 500);
+        }
+
+        return $this->created(MessageResource::make($message), 'Template enviado com sucesso.');
     }
 }

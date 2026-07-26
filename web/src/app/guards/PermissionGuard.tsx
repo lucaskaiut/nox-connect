@@ -2,11 +2,14 @@ import type { ReactNode } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import type { Permission } from '@/shared/constants/permissions'
 import { usePermissions } from '@/shared/hooks/usePermissions'
+import { useIsUmbrellaTenant } from '@/shared/hooks/useIsUmbrellaTenant'
 import { ButtonLink, Card, EmptyState } from '@/shared/design-system'
 
 interface PermissionGuardProps {
   permission?: Permission
   anyOf?: Permission[]
+  /** Exige tenant umbrella (raiz / sem parent_id). */
+  requiresUmbrella?: boolean
   fallback?: ReactNode
   children: ReactNode
 }
@@ -14,11 +17,20 @@ interface PermissionGuardProps {
 /**
  * Renderiza o conteúdo apenas quando o usuário possui a permissão exigida.
  */
-export function PermissionGuard({ permission, anyOf, fallback, children }: PermissionGuardProps) {
+export function PermissionGuard({
+  permission,
+  anyOf,
+  requiresUmbrella = false,
+  fallback,
+  children,
+}: PermissionGuardProps) {
   const { can, canAny } = usePermissions()
+  const isUmbrella = useIsUmbrellaTenant()
 
   const allowed =
-    (permission === undefined || can(permission)) && (anyOf === undefined || canAny(anyOf))
+    (!requiresUmbrella || isUmbrella) &&
+    (permission === undefined || can(permission)) &&
+    (anyOf === undefined || canAny(anyOf))
 
   if (!allowed) {
     if (fallback !== undefined) return fallback
@@ -28,7 +40,11 @@ export function PermissionGuard({ permission, anyOf, fallback, children }: Permi
         <EmptyState
           icon={ShieldAlert}
           title="Acesso restrito"
-          description="Você não possui permissão para acessar esta área. Fale com o administrador da sua organização."
+          description={
+            requiresUmbrella && !isUmbrella
+              ? 'O cadastro de planos está disponível apenas para o tenant raiz (umbrella).'
+              : 'Você não possui permissão para acessar esta área. Fale com o administrador da sua organização.'
+          }
           action={
             <ButtonLink to="/dashboard" variant="secondary">
               Voltar ao dashboard
@@ -49,14 +65,21 @@ export function PermissionGuard({ permission, anyOf, fallback, children }: Permi
 export function Can({
   permission,
   anyOf,
+  requiresUmbrella,
   children,
 }: {
   permission?: Permission
   anyOf?: Permission[]
+  requiresUmbrella?: boolean
   children: ReactNode
 }) {
   return (
-    <PermissionGuard permission={permission} anyOf={anyOf} fallback={null}>
+    <PermissionGuard
+      permission={permission}
+      anyOf={anyOf}
+      requiresUmbrella={requiresUmbrella}
+      fallback={null}
+    >
       {children}
     </PermissionGuard>
   )

@@ -2,15 +2,17 @@
 
 namespace App\Modules\WhatsApp\Models;
 
+use App\Modules\Tenant\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WhatsAppWebhookLog extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'whatsapp_webhook_logs';
 
     protected $fillable = [
-        'whatsapp_config_id',
+        'tenant_id',
         'method',
         'url',
         'request_headers',
@@ -26,13 +28,6 @@ class WhatsAppWebhookLog extends Model
         return [
             'request_headers' => 'array',
             'request_payload' => 'array',
-            'response_status' => 'integer',
-            'duration_ms' => 'integer',
         ];
-    }
-
-    public function config(): BelongsTo
-    {
-        return $this->belongsTo(WhatsAppConfig::class, 'whatsapp_config_id');
     }
 }

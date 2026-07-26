@@ -3,7 +3,10 @@
 use App\Modules\ACL\Http\Middleware\EnsurePermission;
 use App\Modules\ApiToken\Http\Middleware\AuthenticateApiToken;
 use App\Modules\ApiToken\Http\Middleware\MultiAuthenticate;
+use App\Modules\Billing\Http\Middleware\EnsureActiveSubscription;
+use App\Modules\Onboarding\Http\Middleware\EnsureOnboardingCompleted;
 use App\Modules\Shared\Http\ApiError;
+use App\Modules\Tenant\Exceptions\TenantAccessForbidden;
 use App\Modules\Tenant\Exceptions\TenantCouldNotBeResolved;
 use App\Modules\Tenant\Http\Middleware\ResolveTenant;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -39,6 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => EnsurePermission::class,
             'auth.api-token' => AuthenticateApiToken::class,
             'auth.multi' => MultiAuthenticate::class,
+            'subscription.active' => EnsureActiveSubscription::class,
+            'onboarding.completed' => EnsureOnboardingCompleted::class,
         ]);
 
         $middleware->prependToPriorityList(
@@ -59,6 +64,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (TenantCouldNotBeResolved $e, Request $request) {
             if (ApiError::shouldRender($request)) {
                 return ApiError::response($e->getMessage(), 404);
+            }
+        });
+
+        $exceptions->render(function (TenantAccessForbidden $e, Request $request) {
+            if (ApiError::shouldRender($request)) {
+                return ApiError::response($e->getMessage(), 403);
             }
         });
 

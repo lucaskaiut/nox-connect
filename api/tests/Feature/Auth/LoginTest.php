@@ -63,6 +63,7 @@ class LoginTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.user.email', 'admin@empresa.com')
             ->assertJsonPath('data.tenant.id', $tenant->uuid)
+            ->assertJsonPath('data.tenant.is_umbrella', true)
             ->assertJsonPath('data.roles.0.name', DefaultRole::ADMINISTRATOR->value);
 
         $permissions = $response->json('data.permissions');

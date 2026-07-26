@@ -1,90 +1,71 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/shared/constants/query-keys'
 import { toast } from '@/shared/stores/toast.store'
-import { whatsappService, type ConversationFilters, type WhatsAppConfigPayload } from '../services/whatsapp.service'
+import {
+  whatsappService,
+  type ConversationFilters,
+  type CreateTemplatePayload,
+  type TemplateParams,
+  type UpdateTemplatePayload,
+  type WhatsAppConnectPayload,
+} from '../services/whatsapp.service'
 
-export function useWebhookLogsQuery(configId: number) {
+export function useWhatsAppConnectionQuery() {
   return useQuery({
-    queryKey: queryKeys.whatsapp.configs.webhookLogs(configId),
-    queryFn: () => whatsappService.getWebhookLogs(configId),
-    enabled: configId > 0,
+    queryKey: queryKeys.whatsapp.connection.detail(),
+    queryFn: whatsappService.getConnection,
   })
 }
 
-export function useWhatsAppConfigsQuery() {
+export function useWebhookLogsQuery() {
   return useQuery({
-    queryKey: queryKeys.whatsapp.configs.list(),
-    queryFn: whatsappService.listConfigs,
+    queryKey: queryKeys.whatsapp.connection.webhookLogs(),
+    queryFn: whatsappService.getWebhookLogs,
   })
 }
 
-export function useWhatsAppConfigQuery(id: number) {
-  return useQuery({
-    queryKey: queryKeys.whatsapp.configs.detail(id),
-    queryFn: () => whatsappService.getConfig(id),
-    enabled: id > 0,
-  })
-}
-
-export function useCreateWhatsAppConfig() {
+export function useConnectWhatsApp() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: WhatsAppConfigPayload) => whatsappService.createConfig(payload),
+    mutationFn: (payload: WhatsAppConnectPayload) => whatsappService.connect(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.configs.all })
-      toast.success('Configuração criada com sucesso.')
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection.all })
+      toast.success('Conexão estabelecida com sucesso.')
     },
   })
 }
 
-export function useUpdateWhatsAppConfig() {
+export function useDisconnectWhatsApp() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, ...payload }: WhatsAppConfigPayload & { id: number }) =>
-      whatsappService.updateConfig(id, payload),
+    mutationFn: () => whatsappService.disconnect(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.configs.all })
-      toast.success('Configuração atualizada com sucesso.')
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection.all })
+      toast.success('Conexão removida.')
     },
   })
 }
 
-export function useDeleteWhatsAppConfig() {
-  const queryClient = useQueryClient()
-
+export function useTestWhatsAppConnection() {
   return useMutation({
-    mutationFn: (id: number) => whatsappService.deleteConfig(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.configs.all })
-      toast.success('Configuração removida com sucesso.')
-    },
-  })
-}
-
-export function useTestConnection() {
-  return useMutation({
-    mutationFn: (id: number) => whatsappService.testConnection(id),
-  })
-}
-
-export function useToggleConfig() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (id: number) => whatsappService.toggleConfig(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.configs.all })
-      toast.success('Status da conexão alterado.')
-    },
+    mutationFn: () => whatsappService.testConnection(),
   })
 }
 
 export function useConversationsQuery(filters: ConversationFilters) {
-  return useQuery({
-    queryKey: queryKeys.whatsapp.conversations.list(filters),
-    queryFn: () => whatsappService.listConversations(filters),
+  const { cursor: _, ...queryKeyFilters } = filters
+
+  return useInfiniteQuery({
+    queryKey: queryKeys.whatsapp.conversations.list(queryKeyFilters),
+    queryFn: ({ pageParam }) =>
+      whatsappService.listConversations({
+        ...filters,
+        cursor: pageParam ?? null,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.meta.next_cursor,
   })
 }
 
@@ -262,9 +243,14 @@ export function useKanbanBoardQuery() {
 }
 
 export function useMoveConversationStage() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: ({ conversationId, stageId }: { conversationId: number; stageId: number | null }) =>
       whatsappService.moveConversationStage(conversationId, stageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
+    },
   })
 }
 
@@ -322,5 +308,93 @@ export function useSeedDefaultStages() {
       queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
       toast.success('Etapas padrão criadas com sucesso.')
     },
+  })
+}
+
+export function useTemplatesQuery(params?: TemplateParams) {
+  return useQuery({
+    queryKey: queryKeys.whatsapp.templates.list(params),
+    queryFn: () => whatsappService.listTemplates(params),
+  })
+}
+
+export function useTemplateQuery(templateId: string) {
+  return useQuery({
+    queryKey: queryKeys.whatsapp.templates.detail(templateId),
+    queryFn: () => whatsappService.getTemplate(templateId),
+    enabled: templateId.length > 0,
+  })
+}
+
+export function useCreateTemplate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: CreateTemplatePayload) => whatsappService.createTemplate(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.templates.all })
+      toast.success('Template criado com sucesso.')
+    },
+    onError: (error: { message?: string }) => {
+      toast.error(error?.message ?? 'Erro ao criar template.')
+    },
+  })
+}
+
+export function useUpdateTemplate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ templateId, ...payload }: UpdateTemplatePayload & { templateId: string }) =>
+      whatsappService.updateTemplate(templateId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.templates.all })
+      toast.success('Template atualizado com sucesso.')
+    },
+    onError: (error: { message?: string }) => {
+      toast.error(error?.message ?? 'Erro ao atualizar template.')
+    },
+  })
+}
+
+export function useDeleteTemplate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params: { name?: string; hsm_id?: string; hsm_ids?: string }) =>
+      whatsappService.deleteTemplate(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.templates.all })
+      toast.success('Template(s) removido(s) com sucesso.')
+    },
+    onError: (error: { message?: string }) => {
+      toast.error(error?.message ?? 'Erro ao remover template(s).')
+    },
+  })
+}
+
+export function useSendTemplate() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ conversationId, ...payload }: { conversationId: number; template_name: string; language: string; variables: string[] }) =>
+      whatsappService.sendTemplate(conversationId, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.detail(variables.conversationId) })
+      toast.success('Template enviado com sucesso.')
+    },
+    onError: (error: { message?: string }) => {
+      toast.error(error?.message ?? 'Erro ao enviar template.')
+    },
+  })
+}
+
+export function useWindowStatus(conversationId: number) {
+  return useQuery({
+    queryKey: [...queryKeys.whatsapp.conversations.detail(conversationId), 'window'] as const,
+    queryFn: () => whatsappService.getWindowStatus(conversationId),
+    enabled: conversationId > 0,
+    refetchInterval: 30_000,
   })
 }

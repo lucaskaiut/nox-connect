@@ -23,6 +23,9 @@ class TenantResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'domain' => $this->domain,
+            'is_umbrella' => $this->isUmbrella(),
+            'onboarding_completed' => $this->isOnboardingCompleted(),
+            'needs_onboarding' => $this->needsOnboarding(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

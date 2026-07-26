@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('phone', 20)->nullable();
             $table->string('domain')->unique();
+            $table->json('settings')->nullable();
             $table->timestamps();
         });
     }

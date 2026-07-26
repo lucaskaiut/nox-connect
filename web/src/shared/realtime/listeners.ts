@@ -12,7 +12,7 @@ import { queryKeys } from '@/shared/constants/query-keys'
 // ---------------------------------------------------------------------------
 
 interface MessageReceivedPayload {
-  conversation: WhatsAppConversation
+  conversation_id: number
   message: WhatsAppMessage
 }
 
@@ -23,7 +23,7 @@ interface MessageSentPayload {
 
 interface MessageStatusPayload {
   conversation_id: number
-  message_id: number
+  external_message_id: string
   status: string
   delivered_at?: string | null
   read_at?: string | null
@@ -69,16 +69,18 @@ function updateConversationInCache(
 // ---------------------------------------------------------------------------
 
 export function handleMessageReceived(queryClient: QueryClient, payload: MessageReceivedPayload) {
-  const { conversation, message } = payload
+  const { conversation_id: conversationId, message } = payload
 
-  updateConversationInCache(queryClient, conversation.id, (old) => ({
+  updateConversationInCache(queryClient, conversationId, (old) => ({
     ...old,
-    messages: old.messages ? [message, ...old.messages] : old.messages,
+    messages: old.messages ? [...old.messages, message] : old.messages,
     last_message_preview: message.content,
     last_message_at: message.created_at,
+    is_unread: true,
   }))
 
   queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.all })
+  queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.kanban.all })
 }
 
 export function handleMessageSent(queryClient: QueryClient, payload: MessageSentPayload) {
@@ -93,7 +95,7 @@ export function handleMessageSent(queryClient: QueryClient, payload: MessageSent
 }
 
 export function handleMessageDelivered(queryClient: QueryClient, payload: MessageStatusPayload) {
-  const { conversation_id: conversationId, message_id: messageId, status, delivered_at } = payload
+  const { conversation_id: conversationId, external_message_id: externalMessageId, status, delivered_at } = payload
 
   updateConversationInCache(queryClient, conversationId, (old) => {
     if (!old.messages) return old
@@ -101,14 +103,16 @@ export function handleMessageDelivered(queryClient: QueryClient, payload: Messag
     return {
       ...old,
       messages: old.messages.map((msg) =>
-        msg.id === messageId ? { ...msg, status, delivered_at: delivered_at ?? msg.delivered_at } : msg,
+        msg.external_message_id === externalMessageId
+          ? { ...msg, status, delivered_at: delivered_at ?? msg.delivered_at }
+          : msg,
       ),
     }
   })
 }
 
 export function handleMessageRead(queryClient: QueryClient, payload: MessageStatusPayload) {
-  const { conversation_id: conversationId, message_id: messageId, status, read_at } = payload
+  const { conversation_id: conversationId, external_message_id: externalMessageId, status, read_at } = payload
 
   updateConversationInCache(queryClient, conversationId, (old) => {
     if (!old.messages) return old
@@ -116,7 +120,9 @@ export function handleMessageRead(queryClient: QueryClient, payload: MessageStat
     return {
       ...old,
       messages: old.messages.map((msg) =>
-        msg.id === messageId ? { ...msg, status, read_at: read_at ?? msg.read_at } : msg,
+        msg.external_message_id === externalMessageId
+          ? { ...msg, status, read_at: read_at ?? msg.read_at }
+          : msg,
       ),
     }
   })
@@ -211,53 +217,58 @@ interface EchoChannel {
 }
 
 export function setupTenantChannelListeners(channel: EchoChannel, queryClient: QueryClient) {
-  channel.listen('message.received', (payload) =>
+  // Leading "." is required when the backend uses broadcastAs()
+  channel.listen('.message.received', (payload) =>
     handleMessageReceived(queryClient, payload as MessageReceivedPayload),
   )
 
-  channel.listen('conversation.assigned', (payload) =>
+  channel.listen('.conversation.assigned', (payload) =>
     handleConversationAssigned(queryClient, payload as ConversationAssignmentPayload),
   )
 
-  channel.listen('conversation.transferred', (payload) =>
+  channel.listen('.conversation.transferred', (payload) =>
     handleConversationTransferred(queryClient, payload as ConversationAssignmentPayload),
   )
 
-  channel.listen('conversation.closed', (payload) =>
+  channel.listen('.conversation.closed', (payload) =>
     handleConversationClosed(queryClient, payload as ConversationClosedPayload),
   )
 
-  channel.listen('kanban.card.moved', () => {
+  channel.listen('.kanban.card.moved', () => {
     handleKanbanCardMoved(queryClient)
   })
 
-  channel.listen('kanban.card.created', () => {
+  channel.listen('.kanban.card.created', () => {
     handleKanbanCardCreated(queryClient)
   })
 }
 
 export function setupConversationChannelListeners(channel: EchoChannel, queryClient: QueryClient) {
-  channel.listen('message.sent', (payload) =>
+  channel.listen('.message.received', (payload) =>
+    handleMessageReceived(queryClient, payload as MessageReceivedPayload),
+  )
+
+  channel.listen('.message.sent', (payload) =>
     handleMessageSent(queryClient, payload as MessageSentPayload),
   )
 
-  channel.listen('message.delivered', (payload) =>
+  channel.listen('.message.delivered', (payload) =>
     handleMessageDelivered(queryClient, payload as MessageStatusPayload),
   )
 
-  channel.listen('message.read', (payload) =>
+  channel.listen('.message.read', (payload) =>
     handleMessageRead(queryClient, payload as MessageStatusPayload),
   )
 
-  channel.listen('tag.attached', (payload) =>
+  channel.listen('.tag.attached', (payload) =>
     handleTagAttached(queryClient, payload as TagPayload),
   )
 
-  channel.listen('tag.detached', (payload) =>
+  channel.listen('.tag.detached', (payload) =>
     handleTagDetached(queryClient, payload as TagPayload),
   )
 
-  channel.listen('internal-note.created', (payload) =>
+  channel.listen('.internal.note.created', (payload) =>
     handleInternalNoteCreated(queryClient, payload as InternalNoteCreatedPayload),
   )
 }

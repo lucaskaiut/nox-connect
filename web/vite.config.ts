@@ -13,10 +13,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  optimizeDeps: {
+    include: ['d-api-sdk/connect'],
+  },
   server: {
     proxy: {
       '/api': { target: apiTarget, changeOrigin: false },
       '/sanctum': { target: apiTarget, changeOrigin: false },
+      '/broadcasting': { target: apiTarget, changeOrigin: false },
     },
   },
 })

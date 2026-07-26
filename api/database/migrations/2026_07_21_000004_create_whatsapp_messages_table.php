@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('message_type');
             $table->text('content')->nullable();
             $table->json('media')->nullable();
-            $table->string('wa_message_id')->nullable()->unique();
+            $table->string('external_message_id')->nullable()->unique();
             $table->string('status')->default('received');
             $table->json('metadata')->nullable();
             $table->timestamp('delivered_at')->nullable();
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('conversation_id');
-            $table->index('wa_message_id');
+            $table->index('external_message_id');
         });
     }
 

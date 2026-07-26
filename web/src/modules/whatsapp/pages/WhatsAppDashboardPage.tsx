@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
   Clock,
+  FileText,
   KanbanSquare,
   MessageSquare,
   MessagesSquare,
@@ -81,10 +82,17 @@ export default function WhatsAppDashboardPage() {
             accent="bg-success-soft text-success"
           />
           <LinkCard
+            icon={FileText}
+            title="Templates"
+            description="Gerencie templates de mensagem do WhatsApp."
+            to="/whatsapp/templates"
+            accent="bg-info-soft text-info"
+          />
+          <LinkCard
             icon={Settings}
-            title="Configurações"
-            description="Gerencie conexões com o WhatsApp."
-            to="/whatsapp/configs"
+            title="Conexão"
+            description="Vincule este tenant ao provedor WhatsApp global."
+            to="/whatsapp/connection"
             accent="bg-surface-2 text-muted"
           />
         </div>

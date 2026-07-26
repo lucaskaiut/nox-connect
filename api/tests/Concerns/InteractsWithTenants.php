@@ -36,6 +36,26 @@ trait InteractsWithTenants
         return $user;
     }
 
+    protected function createMaster(Tenant $umbrella, array $attributes = []): User
+    {
+        $user = User::factory()
+            ->for($umbrella)
+            ->master()
+            ->create($attributes);
+
+        $user->assignRole($this->roleFor($umbrella, DefaultRole::ADMINISTRATOR));
+
+        return $user;
+    }
+
+    protected function createChildTenant(Tenant $parent, array $attributes = []): Tenant
+    {
+        return $this->createTenantWithRoles([
+            ...$attributes,
+            'parent_id' => $parent->getKey(),
+        ]);
+    }
+
     protected function roleFor(Tenant $tenant, DefaultRole $role): Role
     {
         return Role::query()

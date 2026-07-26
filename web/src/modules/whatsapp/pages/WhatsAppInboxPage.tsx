@@ -220,7 +220,7 @@ function ConversationRow({ conversation }: { conversation: WhatsAppConversation 
   const contactName =
     conversation.contact.display_name ||
     conversation.contact.profile_name ||
-    conversation.contact.wa_id
+    conversation.contact.external_contact_id
 
   const assignment = conversation.current_assignment
   const stage = conversation.current_stage

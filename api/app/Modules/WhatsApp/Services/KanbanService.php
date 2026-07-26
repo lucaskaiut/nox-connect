@@ -52,7 +52,7 @@ class KanbanService
             ?? 'Contato';
 
         broadcast(new KanbanCardMoved(
-            $conversation->tenant_id,
+            $conversation->tenantUuid(),
             $conversation->id,
             $fromStageId,
             $stageId,

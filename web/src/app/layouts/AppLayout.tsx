@@ -1,7 +1,9 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
-import { LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, Settings, ShieldCheck, Users, Webhook, Zap } from 'lucide-react'
+import { FileText, LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, CreditCard, Receipt, Settings, ShieldCheck, Tag, Users, Zap } from 'lucide-react'
+import { TenantSelector } from '@/modules/auth/components/TenantSelector'
 import { useSessionStore } from '@/shared/stores/session.store'
+import { useTenantContextStore } from '@/shared/stores/tenant.store'
 import { useUiStore } from '@/shared/stores/ui.store'
 import { Permission } from '@/shared/constants/permissions'
 import { usePermissions } from '@/shared/hooks/usePermissions'
@@ -23,6 +25,13 @@ import { cn } from '@/shared/utils/cn'
 
 function Brand() {
   const tenant = useSessionStore((state) => state.tenant)
+  const isMaster = useSessionStore((state) => state.isMaster)
+  const availableTenants = useSessionStore((state) => state.availableTenants)
+  const selectedTenantId = useTenantContextStore((state) => state.selectedTenantId)
+
+  const activeName = isMaster
+    ? (availableTenants.find((item) => item.id === selectedTenantId)?.name ?? tenant?.name)
+    : tenant?.name
 
   return (
     <div className="flex items-center gap-2.5 px-1">
@@ -31,7 +40,7 @@ function Brand() {
       </span>
       <span className="min-w-0">
         <span className="block text-sm leading-tight font-semibold text-foreground">Nox</span>
-        <span className="block truncate text-xs text-muted">{tenant?.name}</span>
+        <span className="block truncate text-xs text-muted">{activeName}</span>
       </span>
     </div>
   )
@@ -56,22 +65,54 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         {can(Permission.API_TOKEN_READ) && (
           <SidebarItem to="/api-tokens" icon={KeyRound} label="Tokens de API" onNavigate={onNavigate} />
         )}
-        {can(Permission.WEBHOOK_READ) && (
+        {/* {can(Permission.WEBHOOK_READ) && (
           <SidebarItem to="/webhooks" icon={Webhook} label="Webhooks" onNavigate={onNavigate} />
-        )}
+        )} */}
       </SidebarGroup>
+
+      {(can(Permission.PLAN_READ) ||
+        can(Permission.SUBSCRIPTION_READ) ||
+        can(Permission.INVOICE_READ)) && (
+        <SidebarGroup label="Assinaturas">
+          {can(Permission.PLAN_READ) && (
+            <SidebarItem to="/billing/plans" icon={CreditCard} label="Planos" onNavigate={onNavigate} />
+          )}
+          {can(Permission.SUBSCRIPTION_READ) && (
+            <SidebarItem
+              to="/billing/subscription"
+              icon={CreditCard}
+              label="Minha assinatura"
+              onNavigate={onNavigate}
+            />
+          )}
+          {can(Permission.INVOICE_READ) && (
+            <SidebarItem
+              to="/billing/invoices"
+              icon={Receipt}
+              label="Cobranças"
+              onNavigate={onNavigate}
+            />
+          )}
+        </SidebarGroup>
+      )}
 
       {can(Permission.WHATSAPP_CONVERSATION_READ) && (
         <SidebarGroup label="WhatsApp">
           <SidebarItem to="/whatsapp/inbox" icon={MessageCircle} label="Caixa de Entrada" onNavigate={onNavigate} />
           {can(Permission.WHATSAPP_KANBAN_READ) && (
-            <SidebarItem to="/whatsapp/kanban" icon={LayoutDashboard} label="Kanban" onNavigate={onNavigate} />
+            <SidebarItem to="/whatsapp/kanban" icon={LayoutDashboard} label="Kanban" onNavigate={onNavigate} end />
           )}
           {can(Permission.WHATSAPP_KANBAN_UPDATE) && (
             <SidebarItem to="/whatsapp/kanban/stages" icon={Settings} label="Etapas Kanban" onNavigate={onNavigate} />
           )}
+          {can(Permission.WHATSAPP_TAG_READ) && (
+            <SidebarItem to="/whatsapp/tags" icon={Tag} label="Tags" onNavigate={onNavigate} />
+          )}
+          {can(Permission.WHATSAPP_TEMPLATE_READ) && (
+            <SidebarItem to="/whatsapp/templates" icon={FileText} label="Templates" onNavigate={onNavigate} />
+          )}
           {can(Permission.WHATSAPP_CONFIG_READ) && (
-            <SidebarItem to="/whatsapp/configs" icon={Webhook} label="Configurações" onNavigate={onNavigate} />
+            <SidebarItem to="/whatsapp/connection" icon={Settings} label="Conexão" onNavigate={onNavigate} />
           )}
         </SidebarGroup>
       )}
@@ -151,6 +192,7 @@ export function AppLayout() {
             <Menu className="size-5" />
           </button>
           <div className="ml-auto flex items-center gap-1.5">
+            <TenantSelector />
             <ThemeToggle />
             <UserMenu />
           </div>

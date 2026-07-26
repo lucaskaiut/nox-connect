@@ -3,7 +3,7 @@ import { http } from '@/shared/api/http'
 import { ensureCsrfCookie } from '@/shared/api/csrf'
 import { queryKeys } from '@/shared/constants/query-keys'
 import type { ApiResponse } from '@/shared/types/api'
-import type { Session } from '@/shared/types/models'
+import type { AvailableTenant, Session } from '@/shared/types/models'
 
 export interface LoginPayload {
   email: string
@@ -46,6 +46,15 @@ export const authService = {
     const response = await http.get<ApiResponse<Session>>('/auth/me')
 
     return response.data.data
+  },
+
+  async selectTenant(tenantId: string): Promise<AvailableTenant> {
+    const response = await http.post<ApiResponse<{ tenant: AvailableTenant }>>(
+      '/auth/select-tenant',
+      { tenant_id: tenantId },
+    )
+
+    return response.data.data.tenant
   },
 }
 
