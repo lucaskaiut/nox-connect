@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router'
-import { FileText, LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, CreditCard, Receipt, Settings, ShieldCheck, Tag, Users, Zap } from 'lucide-react'
+import { FileText, LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, CreditCard, Receipt, Settings, ShieldCheck, Tag, Users, Zap, Webhook } from 'lucide-react'
 import { TenantSelector } from '@/modules/auth/components/TenantSelector'
 import { SetupContinuationBanner } from '@/modules/onboarding/components/SetupContinuationBanner'
 import { useSessionStore } from '@/shared/stores/session.store'
@@ -66,20 +66,26 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         <SidebarItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" onNavigate={onNavigate} />
       </SidebarGroup>
 
-      <SidebarGroup label="Gestão">
-        {can(Permission.USER_READ) && (
-          <SidebarItem to="/users" icon={Users} label="Usuários" onNavigate={onNavigate} />
-        )}
-        {can(Permission.ROLE_READ) && (
-          <SidebarItem to="/roles" icon={ShieldCheck} label="Perfis de acesso" onNavigate={onNavigate} />
-        )}
-        {can(Permission.API_TOKEN_READ) && (
-          <SidebarItem to="/api-tokens" icon={KeyRound} label="Tokens de API" onNavigate={onNavigate} />
-        )}
-        {/* {can(Permission.WEBHOOK_READ) && (
-          <SidebarItem to="/webhooks" icon={Webhook} label="Webhooks" onNavigate={onNavigate} />
-        )} */}
-      </SidebarGroup>
+      {showWhatsApp && (
+        <SidebarGroup label="WhatsApp">
+          <SidebarItem to="/whatsapp/inbox" icon={MessageCircle} label="Caixa de Entrada" onNavigate={onNavigate} />
+          {can(Permission.WHATSAPP_KANBAN_READ) && (
+            <SidebarItem to="/whatsapp/kanban" icon={LayoutDashboard} label="Kanban" onNavigate={onNavigate} end />
+          )}
+          {can(Permission.WHATSAPP_KANBAN_UPDATE) && (
+            <SidebarItem to="/whatsapp/kanban/stages" icon={Settings} label="Etapas Kanban" onNavigate={onNavigate} />
+          )}
+          {can(Permission.WHATSAPP_TAG_READ) && (
+            <SidebarItem to="/whatsapp/tags" icon={Tag} label="Tags" onNavigate={onNavigate} />
+          )}
+          {can(Permission.WHATSAPP_TEMPLATE_READ) && (
+            <SidebarItem to="/whatsapp/templates" icon={FileText} label="Templates" onNavigate={onNavigate} />
+          )}
+          {can(Permission.WHATSAPP_CONFIG_READ) && (
+            <SidebarItem to="/whatsapp/connection" icon={Webhook} label="Conexão" onNavigate={onNavigate} />
+          )}
+        </SidebarGroup>
+      )}
 
       {showBillingGroup && (
         <SidebarGroup label="Assinaturas">
@@ -105,26 +111,20 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         </SidebarGroup>
       )}
 
-      {showWhatsApp && (
-        <SidebarGroup label="WhatsApp">
-          <SidebarItem to="/whatsapp/inbox" icon={MessageCircle} label="Caixa de Entrada" onNavigate={onNavigate} />
-          {can(Permission.WHATSAPP_KANBAN_READ) && (
-            <SidebarItem to="/whatsapp/kanban" icon={LayoutDashboard} label="Kanban" onNavigate={onNavigate} end />
-          )}
-          {can(Permission.WHATSAPP_KANBAN_UPDATE) && (
-            <SidebarItem to="/whatsapp/kanban/stages" icon={Settings} label="Etapas Kanban" onNavigate={onNavigate} />
-          )}
-          {can(Permission.WHATSAPP_TAG_READ) && (
-            <SidebarItem to="/whatsapp/tags" icon={Tag} label="Tags" onNavigate={onNavigate} />
-          )}
-          {can(Permission.WHATSAPP_TEMPLATE_READ) && (
-            <SidebarItem to="/whatsapp/templates" icon={FileText} label="Templates" onNavigate={onNavigate} />
-          )}
-          {can(Permission.WHATSAPP_CONFIG_READ) && (
-            <SidebarItem to="/whatsapp/connection" icon={Settings} label="Conexão" onNavigate={onNavigate} />
-          )}
-        </SidebarGroup>
-      )}
+      <SidebarGroup label="Gestão">
+        {can(Permission.USER_READ) && (
+          <SidebarItem to="/users" icon={Users} label="Usuários" onNavigate={onNavigate} />
+        )}
+        {can(Permission.ROLE_READ) && (
+          <SidebarItem to="/roles" icon={ShieldCheck} label="Perfis de acesso" onNavigate={onNavigate} />
+        )}
+        {can(Permission.API_TOKEN_READ) && (
+          <SidebarItem to="/api-tokens" icon={KeyRound} label="Tokens de API" onNavigate={onNavigate} />
+        )}
+        {/* {can(Permission.WEBHOOK_READ) && (
+          <SidebarItem to="/webhooks" icon={Webhook} label="Webhooks" onNavigate={onNavigate} />
+        )} */}
+      </SidebarGroup>
 
     </Sidebar>
   )
