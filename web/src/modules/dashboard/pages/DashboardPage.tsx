@@ -84,10 +84,6 @@ export default function DashboardPage() {
             </span>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-base font-semibold text-foreground">{tenant?.name}</h2>
-              <p className="flex items-center gap-1.5 text-sm text-muted">
-                <Globe className="size-3.5" aria-hidden="true" />
-                {tenant?.domain}
-              </p>
             </div>
             <Badge variant="success">Ativo</Badge>
           </CardContent>
