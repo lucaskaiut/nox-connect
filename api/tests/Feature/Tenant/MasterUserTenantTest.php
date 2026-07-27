@@ -256,4 +256,37 @@ class MasterUserTenantTest extends TestCase
             ->assertJsonPath('data.available_tenants.1.id', $child->uuid)
             ->assertJsonPath('data.user.email', $master->email);
     }
+
+    public function test_umbrella_cannot_access_operational_product_apis(): void
+    {
+        $umbrella = $this->createTenantWithRoles();
+        $this->createChildTenant($umbrella);
+        $master = $this->createMaster($umbrella);
+
+        Sanctum::actingAs($master);
+        TenantContext::set($umbrella);
+
+        $this->getJson('/api/billing/subscription')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Esta funcionalidade está disponível apenas em empresas filhas. Selecione um tenant operacional.');
+
+        $this->getJson('/api/billing/invoices')
+            ->assertForbidden();
+
+        $this->getJson('/api/whatsapp/conversations')
+            ->assertForbidden();
+    }
+
+    public function test_master_can_access_operational_apis_when_child_is_selected(): void
+    {
+        $umbrella = $this->createTenantWithRoles();
+        $child = $this->createChildTenant($umbrella);
+        $master = $this->createMaster($umbrella);
+
+        Sanctum::actingAs($master);
+
+        $this->getJson('/api/billing/subscription', [
+            AuthenticatedUserStrategy::HEADER => $child->uuid,
+        ])->assertOk();
+    }
 }

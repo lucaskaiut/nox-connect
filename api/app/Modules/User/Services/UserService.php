@@ -3,6 +3,7 @@
 namespace App\Modules\User\Services;
 
 use App\Modules\Tenant\Models\Tenant;
+use App\Modules\Tenant\Support\Facades\TenantContext;
 use App\Modules\User\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -27,6 +28,9 @@ class UserService
      */
     public function create(array $data): User
     {
+        $tenant = TenantContext::isResolved() ? TenantContext::tenant() : null;
+        $data['is_master'] = $tenant?->isUmbrella() ?? false;
+
         $user = User::query()->create($data);
 
         return $user->load('roles.permissions');
@@ -37,6 +41,8 @@ class UserService
      */
     public function createForTenant(Tenant $tenant, array $data): User
     {
+        $data['is_master'] = $tenant->isUmbrella();
+
         return $tenant->users()->create($data);
     }
 
@@ -48,6 +54,8 @@ class UserService
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
         }
+
+        unset($data['is_master']);
 
         $user->fill($data);
         $user->save();

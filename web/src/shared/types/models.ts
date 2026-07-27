@@ -90,6 +90,11 @@ export interface Session {
     current_step: string
     completed_at: string | null
     provider: string
+    whatsapp?: {
+      connected: boolean
+      phone_number?: string | null
+      connection_id?: string | null
+    }
   } | null
 }
 
@@ -146,6 +151,7 @@ export interface Invoice {
   external_id: string | null
   pix_code: string | null
   pix_qrcode: string | null
+  invoice_url?: string | null
   awaiting_payment_method?: boolean
   due_date: string | null
   paid_at: string | null

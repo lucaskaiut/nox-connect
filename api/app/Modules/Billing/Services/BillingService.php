@@ -129,11 +129,16 @@ class BillingService
             $method = $gateway->paymentMethod();
             $dueDate = CarbonImmutable::instance($invoice->due_date ?? now());
 
+            if (! isset($paymentData['remote_ip']) && ! isset($paymentData['remoteIp'])) {
+                $paymentData['remote_ip'] = request()?->ip();
+            }
+
             $customer = $gateway->createCustomer(new CustomerDataDTO(
                 name: $tenant->name,
                 email: $tenant->email,
                 document: $tenant->document,
                 phone: $tenant->phone,
+                externalId: $tenant->uuid,
             ));
 
             $gatewayPayment = $gateway->createPayment(new CreatePaymentDTO(

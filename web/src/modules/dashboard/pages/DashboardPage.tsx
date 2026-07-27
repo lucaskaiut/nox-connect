@@ -11,6 +11,7 @@ import {
   Skeleton,
 } from '@/shared/design-system'
 import { useSessionStore } from '@/shared/stores/session.store'
+import { useIsUmbrellaTenant } from '@/shared/hooks/useIsUmbrellaTenant'
 import { cn } from '@/shared/utils/cn'
 import { useDashboardStats, type DashboardStat } from '../hooks/useDashboardStats'
 
@@ -61,13 +62,18 @@ function StatCard({
 export default function DashboardPage() {
   const user = useSessionStore((state) => state.user)
   const tenant = useSessionStore((state) => state.tenant)
+  const isUmbrella = useIsUmbrellaTenant()
   const stats = useDashboardStats()
 
   return (
     <Page>
       <PageHeader
         title={`Olá, ${user?.name.split(' ')[0] ?? ''}`}
-        description="Aqui está um resumo da sua organização."
+        description={
+          isUmbrella
+            ? 'Gerencie as configurações globais do grupo. Selecione uma empresa filha para operar a aplicação.'
+            : 'Aqui está um resumo da sua organização.'
+        }
       />
 
       <PageContent>

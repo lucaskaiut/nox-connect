@@ -40,6 +40,7 @@ class WhatsAppConnectionProviderTest extends TestCase
             'whatsapp.credentials.public_key' => 'pk_live_test',
             'whatsapp.credentials.secret_key' => 'sk_secret_must_not_leak',
             'whatsapp.d_api.connect_base_url' => 'https://connect.d-api.cloud',
+            'whatsapp.d_api.connect_mode' => 'standard',
             'whatsapp.d_api.webhook_base_url' => null,
             'app.url' => 'http://localhost',
         ]);
@@ -55,13 +56,13 @@ class WhatsAppConnectionProviderTest extends TestCase
         $this->assertSame('d-api', $init['provider']);
         $this->assertSame('pk_live_test', $init['configuration']['publishable_key']);
         $this->assertSame('standard', $init['configuration']['mode']);
-        // Webhook não vai no SDK — só pending para registro pós-complete.
+        // Localhost: webhook omitido (D-API não alcança).
         $this->assertArrayNotHasKey('webhook_url', $init);
-        $this->assertNull($init['configuration']['pending_webhook_url'] ?? null);
+        $this->assertNull($init['configuration']['webhook_url'] ?? null);
         $this->assertStringNotContainsString('sk_secret', json_encode($init));
     }
 
-    public function test_d_api_initialize_includes_pending_public_webhook_url(): void
+    public function test_d_api_initialize_includes_public_webhook_url(): void
     {
         config([
             'whatsapp.provider' => 'd-api',
@@ -76,11 +77,9 @@ class WhatsAppConnectionProviderTest extends TestCase
 
         $init = $provider->initialize($tenant)->toArray();
 
-        $this->assertArrayNotHasKey('webhook_url', $init);
-        $this->assertSame(
-            'https://saas.example.com/api/webhooks/whatsapp/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-            $init['configuration']['pending_webhook_url'],
-        );
+        $expected = 'https://saas.example.com/api/webhooks/whatsapp/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        $this->assertSame($expected, $init['webhook_url']);
+        $this->assertSame($expected, $init['configuration']['webhook_url']);
     }
 
     public function test_d_api_complete_persists_connection_id(): void

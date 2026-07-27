@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/shared/constants/query-keys'
 import { toast } from '@/shared/stores/toast.store'
+import { sessionQueryOptions } from '@/modules/auth/services/auth.service'
+import { useSessionStore } from '@/shared/stores/session.store'
 import {
   whatsappService,
   type ConversationFilters,
@@ -24,13 +26,19 @@ export function useWebhookLogsQuery() {
   })
 }
 
+async function refreshSession(queryClient: ReturnType<typeof useQueryClient>) {
+  const session = await queryClient.fetchQuery(sessionQueryOptions)
+  useSessionStore.getState().setSession(session)
+}
+
 export function useConnectWhatsApp() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (payload: WhatsAppConnectPayload) => whatsappService.connect(payload),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection.all })
+      await refreshSession(queryClient)
       toast.success('Conexão estabelecida com sucesso.')
     },
   })
@@ -41,8 +49,9 @@ export function useDisconnectWhatsApp() {
 
   return useMutation({
     mutationFn: () => whatsappService.disconnect(),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection.all })
+      await refreshSession(queryClient)
       toast.success('Conexão removida.')
     },
   })

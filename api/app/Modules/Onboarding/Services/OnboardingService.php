@@ -115,15 +115,12 @@ class OnboardingService
             ]);
         }
 
-        if (! ($onboarding['whatsapp_completed'] ?? false) && ! $tenant->isWhatsappConnected()) {
-            throw ValidationException::withMessages([
-                'whatsapp' => ['Conecte o WhatsApp antes de finalizar o onboarding.'],
-            ]);
-        }
+        $whatsappReady = (bool) ($onboarding['whatsapp_completed'] ?? false)
+            || $tenant->isWhatsappConnected();
 
         $tenant->mergeOnboardingSettings([
             'company_completed' => true,
-            'whatsapp_completed' => true,
+            'whatsapp_completed' => $whatsappReady,
             'current_step' => 'done',
             'completed_at' => now()->toIso8601String(),
         ]);

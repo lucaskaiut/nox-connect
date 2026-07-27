@@ -161,7 +161,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ} requiresChildTenant>
                 <WhatsAppDashboardPage />
               </PermissionGuard>
             ),
@@ -169,7 +169,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/inbox',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ} requiresChildTenant>
                 <WhatsAppChatPage />
               </PermissionGuard>
             ),
@@ -177,7 +177,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/conversations/:id',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_CONVERSATION_READ} requiresChildTenant>
                 <WhatsAppConversationPage />
               </PermissionGuard>
             ),
@@ -185,7 +185,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/kanban',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_READ} requiresChildTenant>
                 <WhatsAppKanbanPage />
               </PermissionGuard>
             ),
@@ -193,7 +193,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/kanban/stages',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_UPDATE}>
+              <PermissionGuard permission={Permission.WHATSAPP_KANBAN_UPDATE} requiresChildTenant>
                 <WhatsAppKanbanStagesPage />
               </PermissionGuard>
             ),
@@ -201,7 +201,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/tags',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_TAG_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_TAG_READ} requiresChildTenant>
                 <WhatsAppTagsListPage />
               </PermissionGuard>
             ),
@@ -209,7 +209,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/templates',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_TEMPLATE_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_TEMPLATE_READ} requiresChildTenant>
                 <WhatsAppTemplatesListPage />
               </PermissionGuard>
             ),
@@ -217,7 +217,7 @@ export const router = createBrowserRouter([
           {
             path: '/whatsapp/connection',
             element: (
-              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_READ}>
+              <PermissionGuard permission={Permission.WHATSAPP_CONFIG_READ} requiresChildTenant>
                 <WhatsAppConnectionPage />
               </PermissionGuard>
             ),
@@ -249,7 +249,7 @@ export const router = createBrowserRouter([
           {
             path: '/billing/subscription',
             element: (
-              <PermissionGuard permission={Permission.SUBSCRIPTION_READ}>
+              <PermissionGuard permission={Permission.SUBSCRIPTION_READ} requiresChildTenant>
                 <SubscriptionPage />
               </PermissionGuard>
             ),
@@ -257,7 +257,7 @@ export const router = createBrowserRouter([
           {
             path: '/billing/invoices',
             element: (
-              <PermissionGuard permission={Permission.INVOICE_READ}>
+              <PermissionGuard permission={Permission.INVOICE_READ} requiresChildTenant>
                 <InvoicesListPage />
               </PermissionGuard>
             ),

@@ -2,10 +2,12 @@ import { Suspense } from 'react'
 import { Outlet } from 'react-router'
 import { FileText, LayoutDashboard, KeyRound, LogOut, Menu, MessageCircle, CreditCard, Receipt, Settings, ShieldCheck, Tag, Users, Zap } from 'lucide-react'
 import { TenantSelector } from '@/modules/auth/components/TenantSelector'
+import { SetupContinuationBanner } from '@/modules/onboarding/components/SetupContinuationBanner'
 import { useSessionStore } from '@/shared/stores/session.store'
 import { useTenantContextStore } from '@/shared/stores/tenant.store'
 import { useUiStore } from '@/shared/stores/ui.store'
 import { Permission } from '@/shared/constants/permissions'
+import { useIsUmbrellaTenant } from '@/shared/hooks/useIsUmbrellaTenant'
 import { usePermissions } from '@/shared/hooks/usePermissions'
 import { useLogout } from '@/modules/auth/hooks/useAuth'
 import {
@@ -48,6 +50,15 @@ function Brand() {
 
 function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const { can } = usePermissions()
+  const isUmbrella = useIsUmbrellaTenant()
+  /** Funcionalidades de uso final só no tenant filho (empresa operacional). */
+  const isOperatingTenant = !isUmbrella
+
+  const showPlans = isUmbrella && can(Permission.PLAN_READ)
+  const showSubscription = isOperatingTenant && can(Permission.SUBSCRIPTION_READ)
+  const showInvoices = isOperatingTenant && can(Permission.INVOICE_READ)
+  const showBillingGroup = showPlans || showSubscription || showInvoices
+  const showWhatsApp = isOperatingTenant && can(Permission.WHATSAPP_CONVERSATION_READ)
 
   return (
     <Sidebar header={<Brand />}>
@@ -70,14 +81,12 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         )} */}
       </SidebarGroup>
 
-      {(can(Permission.PLAN_READ) ||
-        can(Permission.SUBSCRIPTION_READ) ||
-        can(Permission.INVOICE_READ)) && (
+      {showBillingGroup && (
         <SidebarGroup label="Assinaturas">
-          {can(Permission.PLAN_READ) && (
+          {showPlans && (
             <SidebarItem to="/billing/plans" icon={CreditCard} label="Planos" onNavigate={onNavigate} />
           )}
-          {can(Permission.SUBSCRIPTION_READ) && (
+          {showSubscription && (
             <SidebarItem
               to="/billing/subscription"
               icon={CreditCard}
@@ -85,7 +94,7 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
               onNavigate={onNavigate}
             />
           )}
-          {can(Permission.INVOICE_READ) && (
+          {showInvoices && (
             <SidebarItem
               to="/billing/invoices"
               icon={Receipt}
@@ -96,7 +105,7 @@ function SidebarNavigation({ onNavigate }: { onNavigate?: () => void }) {
         </SidebarGroup>
       )}
 
-      {can(Permission.WHATSAPP_CONVERSATION_READ) && (
+      {showWhatsApp && (
         <SidebarGroup label="WhatsApp">
           <SidebarItem to="/whatsapp/inbox" icon={MessageCircle} label="Caixa de Entrada" onNavigate={onNavigate} />
           {can(Permission.WHATSAPP_KANBAN_READ) && (
@@ -200,6 +209,7 @@ export function AppLayout() {
 
         <main className="flex-1">
           <Container className="pt-2">
+            <SetupContinuationBanner />
             <Suspense fallback={<Loading />}>
               <Outlet />
             </Suspense>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { Check, CheckCircle2, Copy, Loader2, RefreshCw, Zap } from 'lucide-react'
+import { Check, CheckCircle2, Copy, ExternalLink, Loader2, RefreshCw, Zap } from 'lucide-react'
 import {
   Alert,
   Badge,
@@ -12,8 +12,11 @@ import {
   RadioGroup,
   ThemeToggle,
 } from '@/shared/design-system'
+import { parseApiError } from '@/shared/api/errors'
+import { useSessionStore } from '@/shared/stores/session.store'
 import { formatCurrency, formatDateTime } from '@/shared/utils/format'
 import { toast } from '@/shared/stores/toast.store'
+import { CreditCardPaymentForm } from '../components/payment/CreditCardPaymentForm'
 import { checkoutService } from '../services/checkout.service'
 import type { PaymentMethodOption } from '../store/register-checkout.store'
 import type { Invoice } from '@/shared/types/models'
@@ -33,7 +36,7 @@ const STATUS_CONFIG: Record<
     label: 'Aguardando pagamento',
     variant: 'warning',
     title: 'Aguardando pagamento',
-    description: 'Escaneie o QR Code ou use o PIX copia e cola para concluir.',
+    description: 'Conclua o pagamento com o método escolhido para liberar o acesso.',
   },
   PROCESSING: {
     label: 'Confirmando transação',
@@ -67,10 +70,17 @@ const STATUS_CONFIG: Record<
   },
 }
 
+const METHOD_LABELS: Record<string, string> = {
+  pix: 'PIX',
+  credit_card: 'Cartão de crédito',
+  boleto: 'Boleto',
+}
+
 export default function PaymentPendingPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const invoiceId = params.get('invoice') ?? ''
+  const tenant = useSessionStore((state) => state.tenant)
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [methods, setMethods] = useState<PaymentMethodOption[]>([])
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null)
@@ -84,6 +94,9 @@ export default function PaymentPendingPage() {
   const awaitingMethod =
     Boolean(invoice?.awaiting_payment_method) ||
     (invoice?.status === 'PENDING' && !invoice.external_id && !invoice.pix_code)
+
+  const selectedMethod = methods.find((method) => method.id === selectedMethodId) ?? null
+  const isCreditCard = selectedMethod?.payment_method === 'credit_card'
 
   const remaining = useMemo(() => {
     if (!invoice?.expires_at) return null
@@ -118,6 +131,11 @@ export default function PaymentPendingPage() {
             toast.info(
               'Ainda não encontramos o pagamento',
               'Assim que o PIX for confirmado, liberamos o acesso.',
+            )
+          } else if (data.status === 'PENDING') {
+            toast.info(
+              'Ainda não encontramos o pagamento',
+              'Se já pagou, aguarde alguns instantes e tente de novo.',
             )
           }
         }
@@ -171,16 +189,31 @@ export default function PaymentPendingPage() {
     toast.success('PIX copiado', 'Cole no aplicativo do seu banco.')
   }
 
-  const startPayment = async () => {
+  const startPayment = async (paymentData: Record<string, unknown> = {}) => {
     if (!invoice || !selectedMethodId) return
 
     setInitiating(true)
     try {
-      const paid = await checkoutService.payInvoice(invoice.id, selectedMethodId)
+      const paid = await checkoutService.payInvoice(invoice.id, selectedMethodId, paymentData)
       setInvoice(paid)
+
+      if (paid.status === 'PAID') {
+        toast.success('Pagamento confirmado', 'Sua assinatura está ativa.')
+        navigate('/dashboard', { replace: true })
+        return
+      }
+
+      if (paid.invoice_url && paid.payment_method === 'credit_card' && !paid.pix_code) {
+        toast.success('Cobrança gerada', 'Você pode concluir o pagamento na fatura segura.')
+        return
+      }
+
       toast.success('Cobrança gerada', 'Conclua o pagamento com o método escolhido.')
-    } catch {
-      toast.error('Não foi possível iniciar o pagamento', 'Tente novamente.')
+    } catch (err) {
+      const apiError = parseApiError(err)
+      const detail =
+        Object.values(apiError.fieldErrors).flat()[0] ?? apiError.message
+      toast.error('Não foi possível processar o pagamento', detail)
     } finally {
       setInitiating(false)
     }
@@ -194,6 +227,10 @@ export default function PaymentPendingPage() {
     invoice?.status === 'EXPIRED' ||
     invoice?.status === 'FAILED' ||
     invoice?.status === 'CANCELLED'
+  const showCreditCardInvoice =
+    isAwaitingPayment &&
+    Boolean(invoice?.invoice_url) &&
+    invoice?.payment_method === 'credit_card'
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-10">
@@ -272,7 +309,7 @@ export default function PaymentPendingPage() {
             </div>
 
             {awaitingMethod && !isTerminal && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <RadioGroup
                   name="payment_gateway"
                   aria-label="Métodos de pagamento"
@@ -281,17 +318,32 @@ export default function PaymentPendingPage() {
                   options={methods.map((method) => ({
                     value: method.id,
                     label: method.name,
-                    description: method.payment_method,
+                    description: METHOD_LABELS[method.payment_method] ?? method.payment_method,
                   }))}
                 />
-                <Button
-                  onClick={() => void startPayment()}
-                  loading={initiating}
-                  disabled={!selectedMethodId}
-                  className="w-full sm:w-auto sm:min-w-64"
-                >
-                  Continuar para pagamento
-                </Button>
+
+                {isCreditCard ? (
+                  <CreditCardPaymentForm
+                    amount={invoice.amount}
+                    defaults={{
+                      name: tenant?.name,
+                      email: tenant?.email,
+                      document: tenant?.document,
+                      phone: tenant?.phone,
+                    }}
+                    loading={initiating}
+                    onSubmit={startPayment}
+                  />
+                ) : (
+                  <Button
+                    onClick={() => void startPayment()}
+                    loading={initiating}
+                    disabled={!selectedMethodId}
+                    className="w-full sm:w-auto sm:min-w-64"
+                  >
+                    Continuar para pagamento
+                  </Button>
+                )}
               </div>
             )}
 
@@ -307,6 +359,26 @@ export default function PaymentPendingPage() {
                 <p className="max-w-[16rem] text-center text-xs text-muted">
                   Abra o app do seu banco e escaneie o código acima.
                 </p>
+              </div>
+            )}
+
+            {showCreditCardInvoice && invoice.invoice_url && (
+              <div className="space-y-3 rounded-xl bg-surface-2 px-4 py-4">
+                <p className="text-sm font-medium text-foreground">
+                  Conclua o pagamento na fatura segura do Asaas.
+                </p>
+                <p className="text-sm text-muted">
+                  Se a captura não foi concluída aqui, você pode informar o cartão diretamente na
+                  fatura.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => window.open(invoice.invoice_url!, '_blank', 'noopener,noreferrer')}
+                >
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                  Abrir fatura Asaas
+                </Button>
               </div>
             )}
 

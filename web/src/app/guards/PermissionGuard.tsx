@@ -10,6 +10,8 @@ interface PermissionGuardProps {
   anyOf?: Permission[]
   /** Exige tenant umbrella (raiz / sem parent_id). */
   requiresUmbrella?: boolean
+  /** Exige tenant filho — funcionalidades de uso final não estão no umbrella. */
+  requiresChildTenant?: boolean
   fallback?: ReactNode
   children: ReactNode
 }
@@ -21,6 +23,7 @@ export function PermissionGuard({
   permission,
   anyOf,
   requiresUmbrella = false,
+  requiresChildTenant = false,
   fallback,
   children,
 }: PermissionGuardProps) {
@@ -29,6 +32,7 @@ export function PermissionGuard({
 
   const allowed =
     (!requiresUmbrella || isUmbrella) &&
+    (!requiresChildTenant || !isUmbrella) &&
     (permission === undefined || can(permission)) &&
     (anyOf === undefined || canAny(anyOf))
 
@@ -43,7 +47,9 @@ export function PermissionGuard({
           description={
             requiresUmbrella && !isUmbrella
               ? 'O cadastro de planos está disponível apenas para o tenant raiz (umbrella).'
-              : 'Você não possui permissão para acessar esta área. Fale com o administrador da sua organização.'
+              : requiresChildTenant && isUmbrella
+                ? 'Esta área é de uso operacional. Selecione uma empresa filha no seletor de tenant para continuar.'
+                : 'Você não possui permissão para acessar esta área. Fale com o administrador da sua organização.'
           }
           action={
             <ButtonLink to="/dashboard" variant="secondary">
@@ -66,11 +72,13 @@ export function Can({
   permission,
   anyOf,
   requiresUmbrella,
+  requiresChildTenant,
   children,
 }: {
   permission?: Permission
   anyOf?: Permission[]
   requiresUmbrella?: boolean
+  requiresChildTenant?: boolean
   children: ReactNode
 }) {
   return (
@@ -78,6 +86,7 @@ export function Can({
       permission={permission}
       anyOf={anyOf}
       requiresUmbrella={requiresUmbrella}
+      requiresChildTenant={requiresChildTenant}
       fallback={null}
     >
       {children}

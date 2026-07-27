@@ -5,6 +5,7 @@ type ConnectMode = 'standard' | 'coexistence'
 
 type ConnectStartOptions = {
   mode: ConnectMode
+  webhookUrl?: string
 }
 
 type ConnectResultPayload = {
@@ -15,10 +16,6 @@ type ConnectResultPayload = {
 
 /**
  * Isola o SDK D-API. Nenhum outro módulo deve importar d-api-sdk/connect.
- *
- * Importante: não enviamos webhookUrl no popup — a D-API costuma validar a URL
- * durante o Embedded Signup e falha com "Failed to fetch" se o endpoint não
- * responder como esperado. O webhook é registrado no backend após o complete.
  *
  * Com keep_popup_on_error=true, usamos o handshake manual (igual ao SDK) mas
  * NÃO fechamos o popup em caso de falha — para inspecionar Network/Console.
@@ -31,9 +28,11 @@ export class DApiConnectionAdapter implements ConnectionAdapter {
     const connectBaseUrl = bootstrap.configuration.connect_base_url
       ? String(bootstrap.configuration.connect_base_url)
       : undefined
-    const pendingWebhookUrl = bootstrap.configuration.pending_webhook_url
-      ? String(bootstrap.configuration.pending_webhook_url)
-      : null
+    const webhookUrl =
+      (bootstrap.webhook_url ? String(bootstrap.webhook_url) : null) ??
+      (bootstrap.configuration.webhook_url
+        ? String(bootstrap.configuration.webhook_url)
+        : null)
     const keepPopupOnError = Boolean(bootstrap.configuration.keep_popup_on_error)
 
     if (!publishableKey) {
@@ -42,15 +41,17 @@ export class DApiConnectionAdapter implements ConnectionAdapter {
 
     const configuredMode = String(bootstrap.configuration.mode ?? 'standard')
     const mode: ConnectMode = configuredMode === 'coexistence' ? 'coexistence' : 'standard'
-    const startOptions: ConnectStartOptions = { mode }
+    const startOptions: ConnectStartOptions = {
+      mode,
+      ...(webhookUrl ? { webhookUrl } : {}),
+    }
 
     console.info('[WhatsApp:D-API] abrindo Embedded Signup', {
       provider: bootstrap.provider,
       type: bootstrap.type,
       connectBaseUrl: connectBaseUrl ?? 'https://connect.d-api.cloud',
       publishableKeyPrefix: `${publishableKey.slice(0, 12)}…`,
-      webhookInSdk: false,
-      pendingWebhookUrl,
+      webhookUrl,
       keepPopupOnError,
       startOptions,
     })
@@ -84,18 +85,12 @@ export class DApiConnectionAdapter implements ConnectionAdapter {
         error,
         connectBaseUrl: connectBaseUrl ?? 'https://connect.d-api.cloud',
         publishableKeyPrefix: `${publishableKey.slice(0, 12)}…`,
-        pendingWebhookUrl,
-        webhookInSdk: false,
+        webhookUrl,
         keepPopupOnError,
         mode: startOptions.mode,
-        hint: keepPopupOnError
-          ? 'Popup mantido aberto — inspecione Network/Console na janela connect.d-api.cloud'
-          : 'Ative WHATSAPP_DAPI_KEEP_POPUP_ON_ERROR=true para manter o popup aberto na falha',
       })
 
-      throw new Error(
-        `[D-API SDK] ${message} | mode=${startOptions.mode} | webhookInSdk=false | pendingWebhook=${pendingWebhookUrl ?? 'null'}`,
-      )
+      throw new Error(message)
     }
   }
 
@@ -193,6 +188,7 @@ export class DApiConnectionAdapter implements ConnectionAdapter {
               type: 'dapi-connect-init',
               pk: params.publishableKey,
               mode: params.options.mode,
+              webhookUrl: params.options.webhookUrl,
             },
             connectOrigin,
           )

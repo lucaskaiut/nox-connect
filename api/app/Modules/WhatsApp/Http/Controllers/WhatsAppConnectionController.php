@@ -45,6 +45,9 @@ class WhatsAppConnectionController extends ApiController
         }
 
         $tenant->mergeWhatsappSettings($result->settings);
+        $tenant->mergeOnboardingSettings([
+            'whatsapp_completed' => true,
+        ]);
 
         return $this->success([
             'provider' => $this->provider->key(),
@@ -61,6 +64,9 @@ class WhatsAppConnectionController extends ApiController
         $tenant = TenantContext::tenant();
         $this->provider->disconnectConnection($tenant);
         $tenant->clearWhatsappSettings();
+        $tenant->mergeOnboardingSettings([
+            'whatsapp_completed' => false,
+        ]);
 
         return $this->success(null, 'WhatsApp desconectado.');
     }

@@ -24,7 +24,7 @@ return [
     'active' => [
         'mockPix',
         // 'asaasPix',
-        // 'asaasCreditCard',
+        // 'asaasCreditCard', // requer ASAAS_API_KEY em .env
     ],
 
     /*

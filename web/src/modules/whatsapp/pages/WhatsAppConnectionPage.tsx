@@ -120,7 +120,6 @@ export default function WhatsAppConnectionPage() {
     <Page>
       <PageHeader
         title="Conexão WhatsApp"
-        description="Vincule os identificadores deste tenant ao provedor global da aplicação."
         breadcrumb={[
           { label: 'Dashboard', to: '/dashboard' },
           { label: 'WhatsApp', to: '/whatsapp' },
@@ -130,110 +129,11 @@ export default function WhatsAppConnectionPage() {
 
       <PageContent className="space-y-6">
         <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted">Provedor ativo</p>
-              <p className="font-medium">{connection?.provider ?? '—'}</p>
-            </div>
-            {connection?.connected ? (
-              <Badge variant="success">Conectado</Badge>
-            ) : (
-              <Badge>Desconectado</Badge>
-            )}
-            {connection?.webhook_url && (
-              <div className="w-full">
-                <p className="text-sm text-muted">URL do webhook</p>
-                <code className="break-all text-xs">{connection.webhook_url}</code>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
           <CardContent>
             <Form form={form as never} onSubmit={onSubmit as never} className="space-y-8">
-              <Section
-                title="Identificadores do tenant"
-                description="Credenciais sensíveis ficam apenas na configuração global do servidor (.env)."
-              >
-                {isDApi ? (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <TextField
-                      name="session_id"
-                      label="Session ID"
-                      placeholder="Vazio = cria sessão nova (nox-{tenant})"
-                    />
-                    <TextField
-                      name="connection_id"
-                      label="Connection ID (Cloud API / templates)"
-                      placeholder="Opcional — usa session_id se vazio"
-                    />
-                    <div className="flex items-start gap-2 sm:col-span-2">
-                      <div className="flex-1">
-                        <TextField
-                          name="webhook_verify_token"
-                          label="Token interno de verificação"
-                          placeholder="Gerado automaticamente se vazio"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="mt-[26px] shrink-0"
-                        onClick={() => dapiForm.setValue('webhook_verify_token', generateVerifyToken())}
-                      >
-                        <RefreshCw className="size-4" />
-                        Gerar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <TextField name="account_id" label="ID da conta comercial" required />
-                    <TextField name="channel_id" label="ID do canal" required />
-                    <div className="flex items-start gap-2 sm:col-span-2">
-                      <div className="flex-1">
-                        <TextField
-                          name="webhook_verify_token"
-                          label="Token de verificação do webhook"
-                          placeholder="Gerado automaticamente se vazio"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="mt-[26px] shrink-0"
-                        onClick={() => metaForm.setValue('webhook_verify_token', generateVerifyToken())}
-                      >
-                        <RefreshCw className="size-4" />
-                        Gerar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Section>
-
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" loading={connect.isPending}>
                   {connection?.connected ? 'Atualizar conexão' : 'Conectar'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  loading={test.isPending}
-                  onClick={async () => {
-                    try {
-                      const result = await test.mutateAsync()
-                      setMessage(result.message)
-                    } catch {
-                      setMessage('Falha ao testar conexão.')
-                    }
-                  }}
-                >
-                  <Wifi className="size-4" />
-                  Testar
                 </Button>
                 {connection?.connected && (
                   <Button

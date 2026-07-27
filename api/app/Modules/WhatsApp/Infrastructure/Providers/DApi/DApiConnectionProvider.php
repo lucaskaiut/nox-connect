@@ -15,8 +15,7 @@ use InvalidArgumentException;
  * Fluxo de conexão D-API via SDK (publishable key + popup Embedded Signup).
  * Credencial secreta permanece apenas no backend (DApiClient).
  *
- * Webhook NÃO é enviado no SDK (evita "Failed to fetch" no popup).
- * É registrado depois, no complete(), com a API key secreta.
+ * Webhook público (quando disponível) vai no SDK; complete() reforça o registro via API secreta.
  */
 final class DApiConnectionProvider implements WhatsAppConnectionProvider
 {
@@ -64,7 +63,7 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
             'connect_base_url' => $configuration['connect_base_url'] ?? null,
             'webhook_base_url_config' => config('whatsapp.d_api.webhook_base_url'),
             'resolved_webhook_url' => $webhookUrl,
-            'webhook_in_sdk' => false,
+            'webhook_in_sdk' => $webhookUrl !== null,
             'mode' => $configuration['mode'] ?? 'standard',
         ]);
 
@@ -73,11 +72,9 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
             provider: $this->key(),
             configuration: [
                 ...$configuration,
-                // Só para debug/UI — o adapter NÃO envia isso ao SDK.
-                'pending_webhook_url' => $webhookUrl,
+                'webhook_url' => $webhookUrl,
             ],
-            // Não passa webhook no popup; registro ocorre no complete().
-            webhookUrl: null,
+            webhookUrl: $webhookUrl,
         );
     }
 

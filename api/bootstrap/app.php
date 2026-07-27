@@ -8,6 +8,7 @@ use App\Modules\Onboarding\Http\Middleware\EnsureOnboardingCompleted;
 use App\Modules\Shared\Http\ApiError;
 use App\Modules\Tenant\Exceptions\TenantAccessForbidden;
 use App\Modules\Tenant\Exceptions\TenantCouldNotBeResolved;
+use App\Modules\Tenant\Http\Middleware\EnsureChildTenant;
 use App\Modules\Tenant\Http\Middleware\ResolveTenant;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.multi' => MultiAuthenticate::class,
             'subscription.active' => EnsureActiveSubscription::class,
             'onboarding.completed' => EnsureOnboardingCompleted::class,
+            'tenant.child' => EnsureChildTenant::class,
         ]);
 
         $middleware->prependToPriorityList(

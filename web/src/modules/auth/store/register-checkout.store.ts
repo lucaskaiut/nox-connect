@@ -23,15 +23,6 @@ export interface PaymentMethodOption {
   payment_method: string
 }
 
-export interface CreditCardPaymentData {
-  number: string
-  holder_name: string
-  exp_month: string
-  exp_year: string
-  cvv: string
-  installments: number
-}
-
 interface RegisterCheckoutState {
   step: CheckoutStep
   company: CompanyData

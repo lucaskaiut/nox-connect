@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router'
+import { Check } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
   PageContent,
   PageHeader,
 } from '@/shared/design-system'
+import { cn } from '@/shared/utils/cn'
 import { useOnboardingQuery } from '../hooks/useOnboarding'
 import { CompanyStep } from '../steps/CompanyStep'
 import { WhatsAppConnectionStep } from '../steps/WhatsAppConnectionStep'
@@ -29,6 +31,7 @@ export default function OnboardingPage() {
     return idx >= 0 ? idx : 0
   }, [step])
 
+
   if (isPending) return <Loading />
 
   if (!status) {
@@ -41,12 +44,8 @@ export default function OnboardingPage() {
 
   return (
     <Page>
-      <PageHeader
-        title="Bem-vindo"
-        description="Configure sua empresa e conecte o WhatsApp para começar."
-      />
 
-      <PageContent className="mx-auto max-w-2xl space-y-6">
+      <PageContent className="mx-auto w-full max-w-3xl space-y-6 mt-4">
         <nav aria-label="Progresso do onboarding">
           <ol className="flex gap-2">
             {STEPS.map((item, index) => {
@@ -56,13 +55,24 @@ export default function OnboardingPage() {
               return (
                 <li
                   key={item.id}
-                  className={[
-                    'flex-1 rounded-lg px-3 py-2 text-center text-sm',
-                    current ? 'bg-primary text-primary-foreground' : '',
-                    done ? 'bg-success-soft text-success' : '',
-                    !current && !done ? 'bg-surface-2 text-muted' : '',
-                  ].join(' ')}
+                  className={cn(
+                    'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                    current && 'bg-primary text-primary-foreground shadow-card',
+                    done && 'bg-success-soft text-success',
+                    !current && !done && 'bg-surface-2 text-muted',
+                  )}
                 >
+                  <span
+                    className={cn(
+                      'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+                      current && 'bg-primary-foreground/20 text-primary-foreground',
+                      done && 'bg-success text-white',
+                      !current && !done && 'bg-surface-3 text-muted',
+                    )}
+                    aria-hidden="true"
+                  >
+                    {done ? <Check className="size-3" /> : index + 1}
+                  </span>
                   {item.label}
                 </li>
               )
@@ -71,7 +81,7 @@ export default function OnboardingPage() {
         </nav>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 sm:p-8">
             {step === 'company' && (
               <CompanyStep status={status} onCompleted={() => refetch()} />
             )}

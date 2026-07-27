@@ -382,7 +382,7 @@ export default function WhatsAppTemplatesListPage() {
           <EmptyState
             icon={FileText}
             title="WhatsApp não conectado"
-            description="Conecte o WhatsApp deste tenant antes de gerenciar templates."
+            description="Conecte o WhatsApp antes de gerenciar templates."
             action={<ButtonLink to="/whatsapp/connection">Ir para conexão</ButtonLink>}
           />
         </PageContent>

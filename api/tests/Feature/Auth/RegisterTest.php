@@ -53,6 +53,7 @@ class RegisterTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'admin@empresa.com',
             'document' => '52998224725',
+            'is_master' => true,
         ]);
 
         $tenantId = $this->getTenantId();
@@ -67,7 +68,32 @@ class RegisterTest extends TestCase
         $this->getJson('/api/auth/me', ['Authorization' => "Bearer {$token}"])
             ->assertOk()
             ->assertJsonPath('data.user.email', 'admin@empresa.com')
+            ->assertJsonPath('data.is_master', true)
             ->assertJsonPath('data.roles.0.name', DefaultRole::ADMINISTRATOR->value);
+    }
+
+    public function test_child_tenant_registration_does_not_create_master_user(): void
+    {
+        $this->postJson('/api/auth/register', $this->payload())->assertCreated();
+
+        $this->postJson('/api/auth/register', $this->payload([
+            'tenant' => [
+                'name' => 'Filial Exemplo',
+                'document' => '04.252.011/0001-10',
+                'email' => 'contato@filial.com',
+                'domain' => 'filial.com.br',
+            ],
+            'user' => [
+                'name' => 'Admin Filial',
+                'email' => 'admin@filial.com',
+                'document' => '390.533.447-05',
+            ],
+        ]))->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'admin@filial.com',
+            'is_master' => false,
+        ]);
     }
 
     public function test_register_hashes_the_password(): void

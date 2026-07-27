@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Circle } from 'lucide-react'
 import { Button, Section } from '@/shared/design-system'
 import { useFinishOnboarding } from '../hooks/useOnboarding'
 import type { OnboardingStatus } from '../whatsapp/types'
@@ -11,12 +11,17 @@ export function FinishStep({
   onFinished: () => void
 }) {
   const finish = useFinishOnboarding()
+  const whatsappReady = status.whatsapp.connected || status.whatsapp_completed
 
   return (
     <div className="space-y-6">
       <Section
-        title="Tudo pronto"
-        description="Revise o resumo e entre na aplicação."
+        title={whatsappReady ? 'Tudo pronto' : 'Quase lá'}
+        description={
+          whatsappReady
+            ? 'Revise o resumo e entre na aplicação.'
+            : 'Você já pode entrar na aplicação e conectar o WhatsApp depois.'
+        }
       >
         <ul className="space-y-2 text-sm text-muted">
           <li className="flex items-center gap-2">
@@ -24,8 +29,15 @@ export function FinishStep({
             Empresa: {status.company.name}
           </li>
           <li className="flex items-center gap-2">
-            <CheckCircle2 className="size-4 text-success" />
-            WhatsApp: {status.whatsapp.phone_number ?? status.whatsapp.connection_id ?? 'conectado'}
+            {whatsappReady ? (
+              <CheckCircle2 className="size-4 text-success" />
+            ) : (
+              <Circle className="size-4 text-muted" />
+            )}
+            WhatsApp:{' '}
+            {whatsappReady
+              ? (status.whatsapp.phone_number ?? status.whatsapp.connection_id ?? 'conectado')
+              : 'pendente — conecte depois em Conexão'}
           </li>
         </ul>
       </Section>

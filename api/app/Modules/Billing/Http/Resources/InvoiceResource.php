@@ -22,6 +22,7 @@ class InvoiceResource extends JsonResource
             'external_id' => $this->external_id,
             'pix_code' => $this->pix_code,
             'pix_qrcode' => $this->pix_qrcode,
+            'invoice_url' => $this->metadata['invoice_url'] ?? null,
             'awaiting_payment_method' => $this->awaitsPaymentMethod(),
             'due_date' => $this->due_date?->toIso8601String(),
             'paid_at' => $this->paid_at?->toIso8601String(),

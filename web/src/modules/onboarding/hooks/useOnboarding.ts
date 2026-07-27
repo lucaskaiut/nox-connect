@@ -52,7 +52,7 @@ export function useFinishOnboarding() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.all })
       const session = await queryClient.fetchQuery(sessionQueryOptions)
       setSession(session)
-      toast.success('Onboarding concluído!')
+      toast.success('Bem-vindo!', 'Você já pode usar a aplicação.')
     },
   })
 }

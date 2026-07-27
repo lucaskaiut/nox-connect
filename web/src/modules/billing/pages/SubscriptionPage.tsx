@@ -44,6 +44,18 @@ const statusLabel: Record<Subscription['status'], string> = {
   CANCELLED: 'Cancelada',
 }
 
+const eventLabel: Record<string, string> = {
+  SUBSCRIPTION_CREATED: 'Assinatura criada',
+  TRIAL_STARTED: 'Período de teste iniciado',
+  TRIAL_ENDED: 'Período de teste encerrado',
+  INVOICE_GENERATED: 'Cobrança gerada',
+  PAYMENT_CONFIRMED: 'Pagamento confirmado',
+  PAYMENT_FAILED: 'Pagamento falhou',
+  SUBSCRIPTION_SUSPENDED: 'Assinatura suspensa',
+  SUBSCRIPTION_REACTIVATED: 'Assinatura reativada',
+  SUBSCRIPTION_CANCELLED: 'Assinatura cancelada',
+}
+
 export default function SubscriptionPage() {
   const { data: subscription, isLoading } = useSubscriptionQuery()
   const { data: catalog = [] } = usePlanCatalogQuery()
@@ -142,20 +154,25 @@ export default function SubscriptionPage() {
             </Card>
 
             <Section title="Histórico de eventos">
-              <div className="space-y-2">
-                {(subscription.events ?? []).length === 0 && (
-                  <p className="text-sm text-muted">Nenhum evento registrado.</p>
-                )}
-                {(subscription.events ?? []).map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
-                  >
-                    <span className="font-medium text-foreground">{event.event}</span>
-                    <span className="text-xs text-muted">{formatDateTime(event.created_at)}</span>
-                  </div>
-                ))}
-              </div>
+              {(subscription.events ?? []).length === 0 ? (
+                <p className="text-sm text-muted">Nenhum evento registrado.</p>
+              ) : (
+                <ul className="divide-y divide-surface-3">
+                  {(subscription.events ?? []).map((event) => (
+                    <li
+                      key={event.id}
+                      className="flex items-baseline justify-between gap-4 py-2.5 text-sm first:pt-0 last:pb-0"
+                    >
+                      <span className="text-foreground">
+                        {eventLabel[event.event] ?? event.event}
+                      </span>
+                      <span className="shrink-0 text-[13px] text-muted">
+                        {formatDateTime(event.created_at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Section>
           </>
         )}
