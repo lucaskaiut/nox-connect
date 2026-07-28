@@ -11,6 +11,10 @@ use App\Modules\Billing\DTOs\GatewayPaymentDTO;
  * Porta de saída para gateways de pagamento.
  * O domínio de assinaturas depende apenas desta interface.
  *
+ * createPayment recebe CreatePaymentDTO (Payment Request) com campos
+ * opcionais tipados (token, creditCard, customer, remoteIp, installments)
+ * sem acoplamento a provedores específicos.
+ *
  * Convenção de nomenclatura:
  *   chave config (camelCase) → Classe Studly + Gateway
  *   asaasPix → AsaasPixGateway

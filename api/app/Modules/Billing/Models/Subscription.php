@@ -22,6 +22,8 @@ class Subscription extends Model
         'tenant_id',
         'plan_id',
         'payment_gateway',
+        'credit_card_token',
+        'recurring',
         'status',
         'started_at',
         'trial_ends_at',
@@ -30,10 +32,16 @@ class Subscription extends Model
         'cancelled_at',
     ];
 
+    protected $hidden = [
+        'credit_card_token',
+    ];
+
     protected function casts(): array
     {
         return [
             'status' => SubscriptionStatus::class,
+            'credit_card_token' => 'encrypted',
+            'recurring' => 'boolean',
             'started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'last_billed_at' => 'datetime',

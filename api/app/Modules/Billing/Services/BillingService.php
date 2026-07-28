@@ -3,6 +3,7 @@
 namespace App\Modules\Billing\Services;
 
 use App\Modules\Billing\DTOs\CreatePaymentDTO;
+use App\Modules\Billing\DTOs\CreditCardDTO;
 use App\Modules\Billing\DTOs\CustomerDataDTO;
 use App\Modules\Billing\DTOs\GatewayPaymentDTO;
 use App\Modules\Billing\Enums\GatewayPaymentStatus;
@@ -20,6 +21,7 @@ use App\Modules\Tenant\Models\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class BillingService
@@ -131,18 +133,22 @@ class BillingService
             $dueDate = CarbonImmutable::instance($invoice->due_date ?? now());
 
             $paymentData = PaymentDataRules::sanitize($paymentData);
+            $remoteIp = PaymentDataRules::resolveRemoteIp($paymentData) ?? request()?->ip();
+            $token = PaymentDataRules::resolveToken($paymentData);
+            $creditCard = CreditCardDTO::tryFromPaymentData($paymentData);
+            $installments = PaymentDataRules::resolveInstallments($paymentData);
+            $authorizeOnly = PaymentDataRules::resolveAuthorizeOnly($paymentData);
+            $recurring = PaymentDataRules::resolveRecurring($paymentData);
 
-            if (! isset($paymentData['remote_ip']) && ! isset($paymentData['remoteIp'])) {
-                $paymentData['remote_ip'] = request()?->ip();
-            }
-
-            $customer = $gateway->createCustomer(new CustomerDataDTO(
+            $customerData = new CustomerDataDTO(
                 name: $tenant->name,
                 email: $tenant->email,
                 document: $tenant->document,
                 phone: $tenant->phone,
                 externalId: $tenant->uuid,
-            ));
+            );
+
+            $customer = $gateway->createCustomer($customerData);
 
             $gatewayPayment = $gateway->createPayment(new CreatePaymentDTO(
                 customerExternalId: $customer->externalId,
@@ -156,9 +162,23 @@ class BillingService
                     'plan_uuid' => $plan->uuid,
                     'invoice_uuid' => $invoice->uuid,
                     'payment_gateway' => $gateway->key(),
-                    'payment_data' => $paymentData,
                 ],
+                token: $token,
+                creditCard: $creditCard,
+                customer: $customerData,
+                remoteIp: $remoteIp,
+                installments: $installments,
+                authorizeOnly: $authorizeOnly,
+                recurring: $recurring,
             ));
+
+            $gatewayMetadata = $gatewayPayment->metadata ?? [];
+            $returnedCardToken = is_string($gatewayMetadata['credit_card_token'] ?? null)
+                ? trim((string) $gatewayMetadata['credit_card_token'])
+                : '';
+
+            // Token de cartão fica na assinatura (genérico), não no metadata da fatura.
+            unset($gatewayMetadata['credit_card_token']);
 
             $invoice->gateway = $gateway->key();
             $invoice->payment_method = $method;
@@ -166,16 +186,26 @@ class BillingService
             $invoice->pix_code = $gatewayPayment->pixCode;
             $invoice->pix_qrcode = $gatewayPayment->pixQrcode;
             $invoice->expires_at = $gatewayPayment->expiresAt ?? $invoice->expires_at;
-            $invoice->status = $this->mapGatewayStatus($gatewayPayment->status);
+            // Mantém a fatura aberta: applyGatewayPayment aplica status terminal
+            // e confirma o ciclo (last_billed_at / next_billing_at) quando PAID.
             $invoice->metadata = [
                 ...($invoice->metadata ?? []),
                 'awaiting_payment_method' => false,
                 'customer_external_id' => $customer->externalId,
-                ...($gatewayPayment->metadata ?? []),
+                ...$gatewayMetadata,
             ];
             $invoice->save();
 
             $subscription->payment_gateway = $gateway->key();
+
+            if ($recurring === true) {
+                $subscription->recurring = true;
+
+                if ($returnedCardToken !== '') {
+                    $subscription->credit_card_token = $returnedCardToken;
+                }
+            }
+
             $subscription->save();
 
             $this->events->record($subscription, SubscriptionEventType::INVOICE_GENERATED, [
@@ -185,22 +215,106 @@ class BillingService
                 'action' => 'payment_initiated',
             ]);
 
-            return $invoice->refresh();
+            return $this->applyGatewayPayment($invoice, $gatewayPayment);
         });
     }
 
     /**
-     * Compatível com o cron: cria fatura local (sem gateway).
+     * Cron / geração periódica de cobrança.
+     *
+     * Se a assinatura for recorrente e tiver token de cartão, tenta cobrar
+     * automaticamente no gateway (com retry). Se esgotar as tentativas,
+     * mantém a fatura local para o usuário pagar manualmente.
      */
     public function generateInvoice(Subscription $subscription): Invoice
     {
+        $subscription->loadMissing(['plan', 'tenant']);
+
+        if ($this->canChargeRecurring($subscription)) {
+            return $this->generateRecurringInvoice($subscription);
+        }
+
         return $this->createLocalInvoice($subscription);
+    }
+
+    private function canChargeRecurring(Subscription $subscription): bool
+    {
+        return $subscription->recurring === true
+            && filled($subscription->credit_card_token)
+            && filled($subscription->payment_gateway);
+    }
+
+    private function generateRecurringInvoice(Subscription $subscription): Invoice
+    {
+        $invoice = $this->createLocalInvoice($subscription);
+
+        if (filled($invoice->external_id)) {
+            return $invoice;
+        }
+
+        $maxAttempts = max(1, (int) config('billing.recurring_charge_max_attempts', 3));
+        $delayMs = max(0, (int) config('billing.recurring_charge_retry_delay_ms', 0));
+        $errors = [];
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                return $this->initiatePayment(
+                    $invoice,
+                    (string) $subscription->payment_gateway,
+                    [
+                        'credit_card_token' => $subscription->credit_card_token,
+                        'remote_ip' => $this->resolveRecurringRemoteIp(),
+                    ],
+                );
+            } catch (\Throwable $e) {
+                $errors[] = [
+                    'attempt' => $attempt,
+                    'message' => $e->getMessage(),
+                ];
+
+                Log::warning('Falha na cobrança recorrente', [
+                    'subscription_uuid' => $subscription->uuid,
+                    'invoice_uuid' => $invoice->uuid,
+                    'payment_gateway' => $subscription->payment_gateway,
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $invoice = $invoice->fresh() ?? $invoice;
+
+                if ($attempt < $maxAttempts && $delayMs > 0) {
+                    usleep($delayMs * 1000);
+                }
+            }
+        }
+
+        $this->events->record($subscription, SubscriptionEventType::PAYMENT_FAILED, [
+            'invoice_uuid' => $invoice->uuid,
+            'action' => 'recurring_charge_exhausted',
+            'payment_gateway' => $subscription->payment_gateway,
+            'attempts' => $maxAttempts,
+            'errors' => $errors,
+        ]);
+
+        return $invoice;
+    }
+
+    private function resolveRecurringRemoteIp(): string
+    {
+        $configured = trim((string) config('billing.recurring_remote_ip', ''));
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return (string) (request()?->ip() ?: '127.0.0.1');
     }
 
     public function syncInvoiceStatus(Invoice $invoice): Invoice
     {
         if (! $invoice->isOpen()) {
-            return $invoice;
+            return $this->reconcileUnconfirmedPaidInvoice($invoice);
         }
 
         if (blank($invoice->external_id)) {
@@ -216,6 +330,65 @@ class BillingService
         $gatewayPayment = $this->gateways->resolve($gatewayKey)->getPayment($invoice->external_id);
 
         return $this->applyGatewayPayment($invoice, $gatewayPayment);
+    }
+
+    /**
+     * Repara faturas PAID sem paid_at (ex.: cartão confirmado no createPayment
+     * antes de applyGatewayPayment / confirmPayment existirem no fluxo).
+     */
+    public function reconcileUnconfirmedPaidInvoices(): int
+    {
+        $fixed = 0;
+
+        $invoices = Invoice::query()
+            ->withoutTenancy()
+            ->where('status', InvoiceStatus::PAID->value)
+            ->whereNull('paid_at')
+            ->get();
+
+        foreach ($invoices as $invoice) {
+            $result = $this->reconcileUnconfirmedPaidInvoice($invoice);
+            if ($result->paid_at !== null) {
+                $fixed++;
+            }
+        }
+
+        return $fixed;
+    }
+
+    private function reconcileUnconfirmedPaidInvoice(Invoice $invoice): Invoice
+    {
+        if ($invoice->status !== InvoiceStatus::PAID || $invoice->paid_at !== null) {
+            return $invoice;
+        }
+
+        return DB::transaction(function () use ($invoice): Invoice {
+            $invoice = Invoice::query()->withoutTenancy()->lockForUpdate()->findOrFail($invoice->getKey());
+
+            if ($invoice->status !== InvoiceStatus::PAID || $invoice->paid_at !== null) {
+                return $invoice;
+            }
+
+            $invoice->paid_at = now();
+            $invoice->save();
+
+            $subscription = Subscription::query()
+                ->withoutTenancy()
+                ->lockForUpdate()
+                ->findOrFail($invoice->subscription_id);
+
+            $this->subscriptions->confirmPayment($subscription);
+            $this->events->record($subscription, SubscriptionEventType::PAYMENT_CONFIRMED, [
+                'invoice_uuid' => $invoice->uuid,
+                'external_id' => $invoice->external_id,
+                'amount' => (string) $invoice->amount,
+                'reconciled' => true,
+            ]);
+
+            PaymentConfirmed::dispatch($subscription, $invoice);
+
+            return $invoice->refresh();
+        });
     }
 
     /**

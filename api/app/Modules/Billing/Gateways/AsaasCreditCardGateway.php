@@ -4,6 +4,7 @@ namespace App\Modules\Billing\Gateways;
 
 use App\Modules\Billing\Contracts\PaymentGatewayInterface;
 use App\Modules\Billing\DTOs\CreatePaymentDTO;
+use App\Modules\Billing\DTOs\CreditCardDTO;
 use App\Modules\Billing\DTOs\CustomerDataDTO;
 use App\Modules\Billing\DTOs\GatewayCustomerDTO;
 use App\Modules\Billing\DTOs\GatewayPaymentDTO;
@@ -16,9 +17,13 @@ use Illuminate\Validation\ValidationException;
 /**
  * Gateway Asaas + cartão de crédito (chave: asaasCreditCard).
  *
- * Fronteira PCI: a API não aceita PAN/CVV. Fluxos via payment_data:
- * - Sem token → cobrança + invoiceUrl (checkout hospedado Asaas)
- * - Com credit_card_token / creditCardToken → cobrança com token pré-gerado
+ * Estratégias (decididas neste provider, não no Core):
+ * - token → creditCardToken (tokenização client-side / reutilização)
+ * - creditCard → creditCard + creditCardHolderInfo (server-side)
+ * - nenhum → cobrança + invoiceUrl (checkout hospedado Asaas)
+ *
+ * CreatePaymentDTO::$recurring chega neste gateway para uso futuro
+ * (tokenização/recorrência); ainda não altera o payload Asaas.
  */
 class AsaasCreditCardGateway implements PaymentGatewayInterface
 {
@@ -95,12 +100,7 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
             ]);
         }
 
-        /** @var array<string, mixed> $paymentData */
-        $paymentData = is_array($payment->metadata['payment_data'] ?? null)
-            ? $payment->metadata['payment_data']
-            : [];
-
-        $remoteIp = $this->resolveRemoteIp($paymentData);
+        $remoteIp = trim((string) ($payment->remoteIp ?? ''));
 
         if ($remoteIp === '') {
             throw ValidationException::withMessages([
@@ -120,27 +120,24 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
             'remoteIp' => $remoteIp,
         ];
 
-        $installments = $this->resolveInstallments($paymentData);
+        $installments = $this->resolveInstallments($payment->installments);
 
         if ($installments > 1) {
             $payload['installmentCount'] = $installments;
             $payload['totalValue'] = (float) $payment->amount;
         }
 
-        if (array_key_exists('authorize_only', $paymentData) || array_key_exists('authorizeOnly', $paymentData)) {
-            $payload['authorizeOnly'] = (bool) ($paymentData['authorize_only'] ?? $paymentData['authorizeOnly']);
+        if ($payment->authorizeOnly !== null) {
+            $payload['authorizeOnly'] = $payment->authorizeOnly;
         }
 
-        $token = $this->stringFrom($paymentData, ['credit_card_token', 'creditCardToken']);
-
-        if ($token !== null) {
-            $payload['creditCardToken'] = $token;
-        } elseif ($this->containsRawCardData($paymentData)) {
-            throw ValidationException::withMessages([
-                'payment_data' => [
-                    'Dados de cartão brutos (PAN/CVV) não são aceitos. Use credit_card_token ou conclua o pagamento na fatura Asaas.',
-                ],
-            ]);
+        if ($payment->hasToken()) {
+            $payload['creditCardToken'] = $payment->token;
+        } elseif ($payment->hasCreditCard()) {
+            $payload = [
+                ...$payload,
+                ...$this->buildCreditCardPayload($payment->creditCard, $payment->customer),
+            ];
         }
 
         $payload = array_filter(
@@ -157,7 +154,26 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
             throw $this->toValidationException($e, 'payment');
         }
 
-        return AsaasPaymentMapper::toGatewayPayment($response);
+        $gatewayPayment = AsaasPaymentMapper::toGatewayPayment($response);
+
+        if ($payment->recurring === true) {
+            $this->assertRecurringTokenPresent($gatewayPayment);
+        }
+
+        return $gatewayPayment;
+    }
+
+    private function assertRecurringTokenPresent(GatewayPaymentDTO $gatewayPayment): void
+    {
+        $token = $gatewayPayment->metadata['credit_card_token'] ?? null;
+
+        if (! is_string($token) || trim($token) === '') {
+            throw ValidationException::withMessages([
+                'payment_data.recurring' => [
+                    'Não foi possível obter o token do cartão para cobrança recorrente. Tente novamente ou use outro cartão.',
+                ],
+            ]);
+        }
     }
 
     public function getPayment(string $externalPaymentId): GatewayPaymentDTO
@@ -181,6 +197,63 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
     }
 
     /**
+     * @return array{creditCard: array<string, string>, creditCardHolderInfo: array<string, string>}
+     */
+    private function buildCreditCardPayload(CreditCardDTO $card, ?CustomerDataDTO $customer): array
+    {
+        $holderName = $card->holderName;
+        $holderEmail = $card->holderEmail ?: $customer?->email;
+        $holderDocument = $this->digits($card->holderDocument ?: $customer?->document);
+        $holderPhone = $this->digits($card->holderPhone ?: $customer?->phone);
+        $postalCode = $this->digits($card->postalCode);
+        $addressNumber = trim((string) ($card->addressNumber ?? ''));
+
+        $missing = [];
+
+        if ($holderEmail === null || $holderEmail === '') {
+            $missing['payment_data.credit_card.holder_email'] = ['Informe o e-mail do portador do cartão.'];
+        }
+
+        if ($holderDocument === '') {
+            $missing['payment_data.credit_card.holder_document'] = ['Informe o CPF/CNPJ do portador do cartão.'];
+        }
+
+        if ($postalCode === '') {
+            $missing['payment_data.credit_card.postal_code'] = ['Informe o CEP do portador do cartão.'];
+        }
+
+        if ($addressNumber === '') {
+            $missing['payment_data.credit_card.address_number'] = ['Informe o número do endereço do portador.'];
+        }
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages($missing);
+        }
+
+        $holderInfo = array_filter([
+            'name' => $holderName,
+            'email' => $holderEmail,
+            'cpfCnpj' => $holderDocument,
+            'postalCode' => $postalCode,
+            'addressNumber' => $addressNumber,
+            'addressComplement' => $card->addressComplement,
+            'phone' => $holderPhone !== '' ? $holderPhone : null,
+            'mobilePhone' => $holderPhone !== '' ? $holderPhone : null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
+        return [
+            'creditCard' => [
+                'holderName' => $card->holderName,
+                'number' => $card->number,
+                'expiryMonth' => $card->expirationMonth,
+                'expiryYear' => $card->expirationYear,
+                'ccv' => $card->cvv,
+            ],
+            'creditCardHolderInfo' => $holderInfo,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function mapCustomer(array $payload): GatewayCustomerDTO
@@ -196,37 +269,9 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
         );
     }
 
-    /**
-     * @param  array<string, mixed>  $paymentData
-     */
-    private function containsRawCardData(array $paymentData): bool
+    private function resolveInstallments(?int $installments): int
     {
-        $blockedKeys = [
-            'number', 'cvv', 'ccv', 'pan', 'holder_name', 'holderName',
-            'exp_month', 'exp_year', 'credit_card', 'creditCard',
-            'credit_card_holder_info', 'creditCardHolderInfo',
-        ];
-
-        foreach ($blockedKeys as $key) {
-            if (array_key_exists($key, $paymentData)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @param  array<string, mixed>  $paymentData
-     */
-    private function resolveInstallments(array $paymentData): int
-    {
-        $raw = $paymentData['installments']
-            ?? $paymentData['installment_count']
-            ?? $paymentData['installmentCount']
-            ?? 1;
-
-        $count = (int) $raw;
+        $count = $installments ?? 1;
 
         if ($count < 1) {
             return 1;
@@ -239,41 +284,6 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
         }
 
         return $count;
-    }
-
-    /**
-     * @param  array<string, mixed>  $paymentData
-     */
-    private function resolveRemoteIp(array $paymentData): string
-    {
-        $ip = $this->stringFrom($paymentData, ['remote_ip', 'remoteIp']);
-
-        if ($ip !== null && $ip !== '') {
-            return $ip;
-        }
-
-        return (string) (request()?->ip() ?? '');
-    }
-
-    /**
-     * @param  array<string, mixed>  $source
-     * @param  list<string>  $keys
-     */
-    private function stringFrom(array $source, array $keys): ?string
-    {
-        foreach ($keys as $key) {
-            if (! array_key_exists($key, $source) || $source[$key] === null) {
-                continue;
-            }
-
-            $value = trim((string) $source[$key]);
-
-            if ($value !== '') {
-                return $value;
-            }
-        }
-
-        return null;
     }
 
     private function digits(?string $value): string

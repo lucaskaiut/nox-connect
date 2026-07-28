@@ -17,6 +17,7 @@ class SubscriptionResource extends JsonResource
             'id' => $this->uuid,
             'status' => $this->status->value,
             'payment_gateway' => $this->payment_gateway,
+            'recurring' => (bool) $this->recurring,
             'started_at' => $this->started_at?->toIso8601String(),
             'trial_ends_at' => $this->trial_ends_at?->toIso8601String(),
             'last_billed_at' => $this->last_billed_at?->toIso8601String(),

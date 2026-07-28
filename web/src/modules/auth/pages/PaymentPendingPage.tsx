@@ -18,6 +18,7 @@ import { toast } from '@/shared/stores/toast.store'
 import { checkoutService } from '../services/checkout.service'
 import type { PaymentMethodOption } from '../store/register-checkout.store'
 import type { Invoice } from '@/shared/types/models'
+import { CreditCardPaymentForm } from '../components/payment/CreditCardPaymentForm'
 
 type InvoiceStatus = Invoice['status']
 
@@ -200,9 +201,16 @@ export default function PaymentPendingPage() {
         return
       }
 
-      if (paid.invoice_url && paid.payment_method === 'credit_card' && !paid.pix_code) {
-        toast.success('Cobrança gerada', 'Você pode concluir o pagamento na fatura segura.')
-        return
+      if (paid.payment_method === 'credit_card' && !paid.pix_code) {
+        if (paid.status === 'PROCESSING') {
+          toast.success('Pagamento em análise', 'Aguarde a confirmação da operadora.')
+          return
+        }
+
+        if (paid.invoice_url) {
+          toast.success('Cobrança gerada', 'Você pode concluir o pagamento na fatura segura.')
+          return
+        }
       }
 
       toast.success('Cobrança gerada', 'Conclua o pagamento com o método escolhido.')
@@ -320,20 +328,11 @@ export default function PaymentPendingPage() {
                 />
 
                 {isCreditCard ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted">
-                      Por segurança, os dados do cartão são informados na fatura segura do Asaas.
-                      Clique abaixo para gerar a cobrança e concluir o pagamento.
-                    </p>
-                    <Button
-                      onClick={() => void startPayment()}
-                      loading={initiating}
-                      disabled={!selectedMethodId}
-                      className="w-full sm:w-auto sm:min-w-64"
-                    >
-                      Continuar para pagamento
-                    </Button>
-                  </div>
+                  <CreditCardPaymentForm
+                    amount={invoice.amount}
+                    loading={initiating}
+                    onSubmit={(paymentData) => startPayment(paymentData)}
+                  />
                 ) : (
                   <Button
                     onClick={() => void startPayment()}

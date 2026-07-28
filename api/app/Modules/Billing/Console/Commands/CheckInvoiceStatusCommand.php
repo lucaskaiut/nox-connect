@@ -14,6 +14,7 @@ class CheckInvoiceStatusCommand extends Command
     public function handle(BillingService $billing): int
     {
         $localExpired = $billing->expireOverdueLocalInvoices();
+        $reconciled = $billing->reconcileUnconfirmedPaidInvoices();
         $invoices = $billing->openInvoices();
         $updated = 0;
 
@@ -25,6 +26,7 @@ class CheckInvoiceStatusCommand extends Command
 
         $this->info("Invoices verificadas: {$updated}");
         $this->info("Faturas locais expiradas: {$localExpired}");
+        $this->info("Faturas PAID reconciliadas: {$reconciled}");
 
         return self::SUCCESS;
     }

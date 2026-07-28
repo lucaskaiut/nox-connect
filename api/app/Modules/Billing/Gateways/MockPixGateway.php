@@ -23,6 +23,16 @@ class MockPixGateway implements PaymentGatewayInterface
      */
     private array $store = [];
 
+    /** Simula captura imediata (cartão Asaas CONFIRMED no createPayment). */
+    private bool $instantPaid = false;
+
+    public function payInstantly(bool $value = true): self
+    {
+        $this->instantPaid = $value;
+
+        return $this;
+    }
+
     public function key(): string
     {
         return 'mockPix';
@@ -93,7 +103,7 @@ class MockPixGateway implements PaymentGatewayInterface
 
         $gatewayPayment = new GatewayPaymentDTO(
             externalId: $externalId,
-            status: GatewayPaymentStatus::PENDING,
+            status: $this->instantPaid ? GatewayPaymentStatus::PAID : GatewayPaymentStatus::PENDING,
             amount: $payment->amount,
             pixCode: $pixCode,
             pixQrcode: 'data:image/svg+xml;base64,'.base64_encode(

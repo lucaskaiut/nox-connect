@@ -22,9 +22,9 @@ return [
     */
 
     'active' => [
-        'mockPix',
-        // 'asaasPix',
-        // 'asaasCreditCard', // requer ASAAS_API_KEY em .env
+        // 'mockPix',
+        'asaasPix',
+        'asaasCreditCard', // requer ASAAS_API_KEY em .env
     ],
 
     /*
@@ -51,5 +51,22 @@ return [
     */
 
     'payment_window_days' => (int) env('BILLING_PAYMENT_WINDOW_DAYS', 3),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cobrança recorrente (cron)
+    |--------------------------------------------------------------------------
+    |
+    | Quando a assinatura é recorrente e possui credit_card_token, o comando
+    | billing:generate-invoices tenta cobrar automaticamente via gateway.
+    | Após esgotar as tentativas, gera a fatura local normal (aguarda método).
+    |
+    */
+
+    'recurring_charge_max_attempts' => (int) env('BILLING_RECURRING_CHARGE_MAX_ATTEMPTS', 3),
+
+    'recurring_charge_retry_delay_ms' => (int) env('BILLING_RECURRING_CHARGE_RETRY_DELAY_MS', 500),
+
+    'recurring_remote_ip' => env('BILLING_RECURRING_REMOTE_IP', '127.0.0.1'),
 
 ];
