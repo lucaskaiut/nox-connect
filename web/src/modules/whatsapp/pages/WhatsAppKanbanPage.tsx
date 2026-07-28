@@ -1,16 +1,20 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { GripVertical, Settings } from 'lucide-react'
 import { Badge, ButtonLink, Card, CardContent, Loading, Page, PageContent, PageHeader } from '@/shared/design-system'
 import { cn } from '@/shared/utils/cn'
 import { Can } from '@/app/guards/PermissionGuard'
 import { Permission } from '@/shared/constants/permissions'
-import type { KanbanColumn, WhatsAppConversation } from '@/shared/types/models'
-import { useKanbanBoardQuery, useMoveConversationStage } from '../hooks/useWhatsApp'
+import type { KanbanStage, WhatsAppConversation } from '@/shared/types/models'
+import {
+  useKanbanStagesQuery,
+  useKanbanStageConversationsQuery,
+  useMoveConversationStage,
+} from '../hooks/useWhatsApp'
 
 export default function WhatsAppKanbanPage() {
   const navigate = useNavigate()
-  const query = useKanbanBoardQuery()
+  const stagesQuery = useKanbanStagesQuery()
   const moveConversation = useMoveConversationStage()
 
   const [draggedId, setDraggedId] = useState<number | null>(null)
@@ -65,15 +69,15 @@ export default function WhatsAppKanbanPage() {
       />
 
       <PageContent>
-        {query.isPending ? (
+        {stagesQuery.isPending ? (
           <Loading label="Carregando kanban..." />
         ) : (
           <div className="-mx-6 overflow-x-auto px-6 pb-4">
             <div className="flex gap-4 min-w-max">
-              {(query.data ?? []).map((column) => (
+              {(stagesQuery.data ?? []).map((stage) => (
                 <KanbanColumnView
-                  key={column.stage.id}
-                  column={column}
+                  key={stage.id}
+                  stage={stage}
                   draggedId={draggedId}
                   dropTarget={dropTarget}
                   onDragStart={handleDragStart}
@@ -93,7 +97,7 @@ export default function WhatsAppKanbanPage() {
 }
 
 function KanbanColumnView({
-  column,
+  stage,
   draggedId,
   dropTarget,
   onDragStart,
@@ -103,7 +107,7 @@ function KanbanColumnView({
   onDragEnd,
   onClickCard,
 }: {
-  column: KanbanColumn
+  stage: KanbanStage
   draggedId: number | null
   dropTarget: number | null
   onDragStart: (id: number) => void
@@ -113,7 +117,36 @@ function KanbanColumnView({
   onDragEnd: () => void
   onClickCard: (id: number) => void
 }) {
-  const isDropZone = dropTarget === column.stage.id
+  const isDropZone = dropTarget === stage.id
+  const conversationsQuery = useKanbanStageConversationsQuery(stage.id)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  const conversations = conversationsQuery.data?.pages.flatMap((page) => page.data) ?? []
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          conversationsQuery.hasNextPage &&
+          !conversationsQuery.isFetchingNextPage
+        ) {
+          void conversationsQuery.fetchNextPage()
+        }
+      },
+      { rootMargin: '120px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [
+    conversationsQuery.hasNextPage,
+    conversationsQuery.isFetchingNextPage,
+    conversationsQuery.fetchNextPage,
+  ])
 
   return (
     <div
@@ -121,29 +154,32 @@ function KanbanColumnView({
         'w-72 shrink-0 rounded-xl bg-surface-2/60 transition-colors',
         isDropZone && 'bg-primary-soft/30 ring-2 ring-primary/40',
       )}
-      onDragOver={(e) => onDragOver(e, column.stage.id)}
+      onDragOver={(e) => onDragOver(e, stage.id)}
       onDragLeave={onDragLeave}
-      onDrop={() => onDrop(column.stage.id)}
+      onDrop={() => onDrop(stage.id)}
     >
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: column.stage.color ?? '#6b7280' }}
+            style={{ backgroundColor: stage.color ?? '#6b7280' }}
             aria-hidden="true"
           />
-          <h3 className="truncate text-sm font-semibold text-foreground">{column.stage.name}</h3>
+          <h3 className="truncate text-sm font-semibold text-foreground">{stage.name}</h3>
           <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-xs font-medium text-muted">
-            {column.conversations.length}
+            {conversations.length}
+            {conversationsQuery.hasNextPage ? '+' : ''}
           </span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 p-3 pt-0">
-        {column.conversations.length === 0 ? (
+      <div className="flex max-h-[calc(100vh-16rem)] flex-col gap-2 overflow-y-auto p-3 pt-0">
+        {conversationsQuery.isPending ? (
+          <p className="py-8 text-center text-sm text-muted">Carregando...</p>
+        ) : conversations.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">Sem conversas</p>
         ) : (
-          column.conversations.map((conversation) => (
+          conversations.map((conversation) => (
             <ConversationCard
               key={conversation.id}
               conversation={conversation}
@@ -153,6 +189,10 @@ function KanbanColumnView({
               onClick={() => onClickCard(conversation.id)}
             />
           ))
+        )}
+        <div ref={loadMoreRef} className="h-px" />
+        {conversationsQuery.isFetchingNextPage && (
+          <p className="py-2 text-center text-xs text-muted">Carregando mais...</p>
         )}
       </div>
     </div>
@@ -199,41 +239,13 @@ function ConversationCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-              {conversation.is_unread && (
-                <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="Não lida" />
-              )}
+              {conversation.is_unread && <Badge variant="primary">Nova</Badge>}
             </div>
             {conversation.last_message_preview && (
-              <p className="mt-0.5 truncate text-xs text-muted">
-                {conversation.last_message_preview.length > 50
-                  ? `${conversation.last_message_preview.slice(0, 50)}...`
-                  : conversation.last_message_preview}
-              </p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-muted">{conversation.last_message_preview}</p>
             )}
           </div>
         </div>
-
-        {(conversation.current_assignment || conversation.tags.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1">
-            {conversation.current_assignment?.user && (
-              <Badge variant="primary" className="text-[11px]">
-                {conversation.current_assignment.user.name}
-              </Badge>
-            )}
-            {conversation.tags.map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                style={{
-                  backgroundColor: tag.color ? `${tag.color}20` : undefined,
-                  color: tag.color ?? undefined,
-                }}
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        )}
       </CardContent>
     </Card>
   )

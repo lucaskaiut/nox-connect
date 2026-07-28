@@ -20,9 +20,9 @@ class ApiTokenService
     }
 
     /**
-     * @param  list<string>|null  $permissions  null = acesso irrestrito
+     * @param  list<string>  $permissions
      */
-    public function issue(string $name, ?Carbon $expiresAt = null, ?array $permissions = null): IssuedApiToken
+    public function issue(string $name, ?Carbon $expiresAt = null, array $permissions = []): IssuedApiToken
     {
         $plainTextToken = ApiToken::PREFIX.Str::random(48);
 

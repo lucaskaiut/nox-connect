@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import type { Plan } from '@/shared/types/models'
 
 export type CheckoutStep = 0 | 1 | 2 | 3
@@ -56,14 +56,18 @@ export const CHECKOUT_STEPS = [
   { id: 3, label: 'Confirmar' },
 ] as const
 
+const initialState = {
+  step: 0 as CheckoutStep,
+  company: initialCompany,
+  user: initialUser,
+  selectedPlan: null as Plan | null,
+  acceptedTerms: false,
+}
+
 export const useRegisterCheckoutStore = create<RegisterCheckoutState>()(
   persist(
     (set, get) => ({
-      step: 0,
-      company: initialCompany,
-      user: initialUser,
-      selectedPlan: null,
-      acceptedTerms: false,
+      ...initialState,
 
       setCompany: (data) => set({ company: data }),
       setUser: (data) => set({ user: data }),
@@ -82,40 +86,30 @@ export const useRegisterCheckoutStore = create<RegisterCheckoutState>()(
 
       goToStep: (step) => set({ step }),
 
-      reset: () =>
-        set({
-          step: 0,
-          company: initialCompany,
-          user: initialUser,
-          selectedPlan: null,
-          acceptedTerms: false,
-        }),
+      reset: () => {
+        set(initialState)
+        useRegisterCheckoutStore.persist.clearStorage()
+      },
     }),
     {
       name: 'nox:register-checkout',
+      storage: createJSONStorage(() => sessionStorage),
+      // SEC-30: não persistir PII (empresa/usuário/senha); só progresso e plano.
       partialize: (state) => ({
         step: Math.min(state.step, 3) as CheckoutStep,
-        company: { ...state.company },
-        user: {
-          name: state.user.name,
-          email: state.user.email,
-          password: '',
-          password_confirmation: '',
-        },
         selectedPlan: state.selectedPlan,
         acceptedTerms: state.acceptedTerms,
       }),
       merge: (persisted, current) => {
         const stored = (persisted ?? {}) as Partial<RegisterCheckoutState>
-        // Migra checkout antigo (5 etapas com pagamento) para o novo (4 etapas).
         let step = (stored.step ?? 0) as number
         if (step === 4) step = 3
-        if (step === 3 && !('acceptedTerms' in stored)) step = 3
 
         return {
           ...current,
-          ...stored,
           step: Math.min(Math.max(step, 0), 3) as CheckoutStep,
+          selectedPlan: stored.selectedPlan ?? null,
+          acceptedTerms: stored.acceptedTerms ?? false,
         }
       },
     },

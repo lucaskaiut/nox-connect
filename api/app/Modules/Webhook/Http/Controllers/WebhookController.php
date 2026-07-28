@@ -2,6 +2,8 @@
 
 namespace App\Modules\Webhook\Http\Controllers;
 
+use App\Modules\Audit\Enums\AuditAction;
+use App\Modules\Audit\Services\AuditLogService;
 use App\Modules\Shared\Http\Controllers\ApiController;
 use App\Modules\Webhook\Http\Requests\StoreWebhookRequest;
 use App\Modules\Webhook\Http\Requests\UpdateWebhookRequest;
@@ -17,6 +19,7 @@ class WebhookController extends ApiController
     public function __construct(
         private readonly WebhookService $service,
         private readonly WebhookEventRegistry $eventRegistry,
+        private readonly AuditLogService $audit,
     ) {}
 
     public function events(): JsonResponse
@@ -35,8 +38,14 @@ class WebhookController extends ApiController
     {
         $this->authorize('create', Webhook::class);
 
+        $webhook = $this->service->create($request->validated());
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::WebhookCreated);
+        }
+
         return $this->created(
-            WebhookResource::make($this->service->create($request->validated())),
+            WebhookResource::make($webhook),
             'Webhook criado com sucesso.',
         );
     }
@@ -52,8 +61,14 @@ class WebhookController extends ApiController
     {
         $this->authorize('update', $webhook);
 
+        $webhook = $this->service->update($webhook, $request->validated());
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::WebhookUpdated);
+        }
+
         return $this->success(
-            WebhookResource::make($this->service->update($webhook, $request->validated())),
+            WebhookResource::make($webhook),
             'Webhook atualizado com sucesso.',
         );
     }
@@ -62,6 +77,10 @@ class WebhookController extends ApiController
     {
         $this->authorize('delete', $webhook);
         $this->service->delete($webhook);
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::WebhookDeleted);
+        }
 
         return $this->success(null, 'Webhook removido com sucesso.');
     }

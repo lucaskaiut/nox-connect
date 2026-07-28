@@ -21,7 +21,7 @@ class StoreApiTokenRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'expires_at' => ['nullable', 'date', 'after:now'],
-            'permissions' => ['nullable', 'array'],
+            'permissions' => ['required', 'array', 'min:1'],
             'permissions.*' => ['string', Rule::enum(Permission::class)],
         ];
     }

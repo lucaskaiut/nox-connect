@@ -92,11 +92,17 @@ export function WhatsAppConnectionStep({
 
       const result = await manager.start()
 
+      const connectionNonce =
+        typeof init.configuration.connection_nonce === 'string'
+          ? init.configuration.connection_nonce
+          : undefined
+
       await complete.mutateAsync({
         connection_id: result.connectionId,
         phone_number: result.phoneNumber,
         status: result.status ?? 'connected',
         ...(result.payload ?? {}),
+        ...(connectionNonce ? { connection_nonce: connectionNonce } : {}),
       })
 
       onCompleted()
@@ -143,9 +149,6 @@ export function WhatsAppConnectionStep({
             </div>
             <p className="mt-1 text-sm text-muted">
               Número: {status.whatsapp.phone_number ?? '—'}
-              {status.whatsapp.connection_id
-                ? ` · ID: ${status.whatsapp.connection_id}`
-                : null}
             </p>
           </div>
         </div>

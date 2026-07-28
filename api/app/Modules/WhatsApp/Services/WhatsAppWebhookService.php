@@ -29,7 +29,7 @@ class WhatsAppWebhookService
         }
 
         foreach ($result->statuses as $status) {
-            $this->processStatusUpdate($status);
+            $this->processStatusUpdate($tenant, $status);
         }
     }
 
@@ -42,17 +42,22 @@ class WhatsAppWebhookService
             ? Carbon::parse($incoming->receivedAt)
             : now();
 
-        $storedMessage = WhatsAppMessage::query()->updateOrCreate(
-            ['external_message_id' => $incoming->externalMessageId],
-            [
-                'conversation_id' => $conversation->id,
-                'direction' => MessageDirection::Inbound->value,
-                'message_type' => $messageType->value,
-                'content' => $incoming->content,
-                'media' => $incoming->media,
-                'status' => MessageStatus::Received->value,
-            ]
-        );
+        $storedMessage = WhatsAppMessage::query()
+            ->forTenant($tenant)
+            ->updateOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'external_message_id' => $incoming->externalMessageId,
+                ],
+                [
+                    'conversation_id' => $conversation->id,
+                    'direction' => MessageDirection::Inbound->value,
+                    'message_type' => $messageType->value,
+                    'content' => $incoming->content,
+                    'media' => $incoming->media,
+                    'status' => MessageStatus::Received->value,
+                ]
+            );
 
         $conversation->update([
             'last_message_preview' => $this->buildPreview($messageType, $incoming->content),
@@ -70,9 +75,11 @@ class WhatsAppWebhookService
         ));
     }
 
-    private function processStatusUpdate(MessageStatusUpdateDTO $status): void
+    private function processStatusUpdate(Tenant $tenant, MessageStatusUpdateDTO $status): void
     {
+        // Mensagem de outro tenant: first() retorna null — ignorar sem vazar existência.
         $message = WhatsAppMessage::query()
+            ->forTenant($tenant)
             ->where('external_message_id', $status->externalMessageId)
             ->first();
 
@@ -139,7 +146,7 @@ class WhatsAppWebhookService
     {
         $profileName = $incoming->profileName ?? $incoming->externalContactId;
 
-        return WhatsAppContact::query()->withoutGlobalScopes()->firstOrCreate(
+        return WhatsAppContact::query()->forTenant($tenant->id)->firstOrCreate(
             [
                 'tenant_id' => $tenant->id,
                 'external_contact_id' => $incoming->externalContactId,
@@ -153,18 +160,16 @@ class WhatsAppWebhookService
 
     private function resolveConversation(Tenant $tenant, WhatsAppContact $contact): WhatsAppConversation
     {
-        $conversation = WhatsAppConversation::query()->withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)
+        $conversation = WhatsAppConversation::query()->forTenant($tenant->id)
             ->where('contact_id', $contact->id)
             ->first();
 
         if (! $conversation) {
-            $firstStage = KanbanStage::query()->withoutGlobalScopes()
-                ->where('tenant_id', $tenant->id)
+            $firstStage = KanbanStage::query()->forTenant($tenant->id)
                 ->orderBy('sort_order')
                 ->first();
 
-            $conversation = WhatsAppConversation::query()->withoutGlobalScopes()->create([
+            $conversation = WhatsAppConversation::query()->forTenant($tenant->id)->create([
                 'tenant_id' => $tenant->id,
                 'contact_id' => $contact->id,
                 'status' => ConversationStatus::Open->value,

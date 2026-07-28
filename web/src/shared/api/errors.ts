@@ -4,6 +4,7 @@ export interface ApiError {
   status: number
   message: string
   fieldErrors: Record<string, string[]>
+  data?: unknown
 }
 
 const STATUS_MESSAGES: Record<number, string> = {
@@ -20,6 +21,7 @@ const STATUS_MESSAGES: Record<number, string> = {
 interface ApiErrorBody {
   message?: string | null
   errors?: Record<string, string[]>
+  data?: unknown
 }
 
 export function parseApiError(error: unknown): ApiError {
@@ -31,6 +33,7 @@ export function parseApiError(error: unknown): ApiError {
       status,
       message: body.message || STATUS_MESSAGES[status] || STATUS_MESSAGES[500],
       fieldErrors: body.errors ?? {},
+      data: body.data,
     }
   }
 

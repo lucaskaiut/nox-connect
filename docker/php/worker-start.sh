@@ -6,8 +6,6 @@ cd "$APP_DIR"
 
 log() { echo "[worker-start] $*"; }
 
-log "Aguardando MySQL (compartilhado com api)..."
-
 env_get() {
     local key="$1" default="${2:-}" value
     value="$(grep -E "^${key}=" .env | tail -n1 | cut -d '=' -f2- | tr -d '"' | tr -d "'" || true)"
@@ -18,7 +16,10 @@ export DB_HOST="$(env_get DB_HOST mysql)"
 export DB_PORT="$(env_get DB_PORT 3306)"
 export DB_DATABASE="$(env_get DB_DATABASE nox_cms)"
 export DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-root}"
+export REDIS_HOST="$(env_get REDIS_HOST redis)"
+export REDIS_PORT="$(env_get REDIS_PORT 6379)"
 
+log "Aguardando MySQL..."
 tries=0
 until php -r '
     try {
@@ -35,6 +36,30 @@ until php -r '
     fi
     sleep 2
 done
-log "MySQL disponível. Iniciando queue worker..."
+log "MySQL disponível."
 
-exec php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+log "Aguardando Redis (${REDIS_HOST}:${REDIS_PORT})..."
+tries=0
+until php -r '
+    try {
+        $redis = new Redis();
+        $ok = @$redis->connect(getenv("REDIS_HOST"), (int) getenv("REDIS_PORT"), 2.0);
+        exit($ok ? 0 : 1);
+    } catch (Throwable $e) {
+        exit(1);
+    }
+' 2>/dev/null; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 60 ]; then
+        log "ERRO: Redis indisponível após ${tries} tentativas"
+        exit 1
+    fi
+    sleep 1
+done
+log "Redis disponível. Iniciando queue worker..."
+
+exec php artisan queue:work redis \
+    --queue=whatsapp-webhooks,default \
+    --sleep=1 \
+    --tries=3 \
+    --max-time=3600

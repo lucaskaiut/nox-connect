@@ -9,11 +9,13 @@ use App\Modules\Billing\Models\Subscription;
 use App\Modules\Shared\Models\Concerns\HasUuid;
 use App\Modules\User\Models\User;
 use Database\Factories\TenantFactory;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Crypt;
 
 class Tenant extends Model
 {
@@ -21,6 +23,16 @@ class Tenant extends Model
     use HasFactory;
 
     use HasUuid;
+
+    /** @var list<string> */
+    private const WHATSAPP_ENCRYPTED_KEYS = [
+        'webhook_verify_token',
+        'access_token',
+        'api_token',
+        'api_secret',
+        'app_secret',
+        'secret_key',
+    ];
 
     protected $fillable = [
         'parent_id',
@@ -46,7 +58,19 @@ class Tenant extends Model
     {
         $settings = $this->settings ?? [];
 
-        return is_array($settings['whatsapp'] ?? null) ? $settings['whatsapp'] : [];
+        if (! is_array($settings['whatsapp'] ?? null)) {
+            return [];
+        }
+
+        $whatsapp = $settings['whatsapp'];
+
+        foreach (self::WHATSAPP_ENCRYPTED_KEYS as $key) {
+            if (array_key_exists($key, $whatsapp)) {
+                $whatsapp[$key] = $this->decryptWhatsappValue($whatsapp[$key]);
+            }
+        }
+
+        return $whatsapp;
     }
 
     public function whatsappSetting(string $key, mixed $default = null): mixed
@@ -60,7 +84,17 @@ class Tenant extends Model
     public function mergeWhatsappSettings(array $whatsapp): void
     {
         $settings = $this->settings ?? [];
-        $settings['whatsapp'] = array_merge($settings['whatsapp'] ?? [], $whatsapp);
+        $current = is_array($settings['whatsapp'] ?? null) ? $settings['whatsapp'] : [];
+
+        foreach ($whatsapp as $key => $value) {
+            if (in_array($key, self::WHATSAPP_ENCRYPTED_KEYS, true) && filled($value)) {
+                $current[$key] = Crypt::encryptString((string) $value);
+            } else {
+                $current[$key] = $value;
+            }
+        }
+
+        $settings['whatsapp'] = $current;
         $this->settings = $settings;
         $this->save();
     }
@@ -160,5 +194,19 @@ class Tenant extends Model
     protected static function newFactory(): TenantFactory
     {
         return TenantFactory::new();
+    }
+
+    private function decryptWhatsappValue(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (DecryptException) {
+            // Rotação: valores legados em plaintext continuam legíveis.
+            return $value;
+        }
     }
 }

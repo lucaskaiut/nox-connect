@@ -7,13 +7,18 @@ use App\Modules\ACL\Http\Requests\UpdateRoleRequest;
 use App\Modules\ACL\Http\Resources\RoleResource;
 use App\Modules\ACL\Models\Role;
 use App\Modules\ACL\Services\RoleService;
+use App\Modules\Audit\Enums\AuditAction;
+use App\Modules\Audit\Services\AuditLogService;
 use App\Modules\Shared\Http\Controllers\ApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RoleController extends ApiController
 {
-    public function __construct(private readonly RoleService $service) {}
+    public function __construct(
+        private readonly RoleService $service,
+        private readonly AuditLogService $audit,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -37,6 +42,10 @@ class RoleController extends ApiController
 
         $role = $this->service->create($request->validated());
 
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::RoleCreated);
+        }
+
         return $this->created(RoleResource::make($role), 'Role criada com sucesso.');
     }
 
@@ -46,6 +55,10 @@ class RoleController extends ApiController
 
         $role = $this->service->update($role, $request->validated());
 
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::RoleUpdated);
+        }
+
         return $this->success(RoleResource::make($role), 'Role atualizada com sucesso.');
     }
 
@@ -54,6 +67,10 @@ class RoleController extends ApiController
         $this->authorize('delete', $role);
 
         $this->service->delete($role);
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::RoleDeleted);
+        }
 
         return $this->success(null, 'Role removida com sucesso.');
     }

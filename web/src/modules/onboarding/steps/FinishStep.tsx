@@ -36,7 +36,7 @@ export function FinishStep({
             )}
             WhatsApp:{' '}
             {whatsappReady
-              ? (status.whatsapp.phone_number ?? status.whatsapp.connection_id ?? 'conectado')
+              ? (status.whatsapp.phone_number ?? 'conectado')
               : 'pendente — conecte depois em Conexão'}
           </li>
         </ul>

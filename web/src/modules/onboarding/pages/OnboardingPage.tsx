@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { Check } from 'lucide-react'
 import {
@@ -7,7 +7,6 @@ import {
   Loading,
   Page,
   PageContent,
-  PageHeader,
 } from '@/shared/design-system'
 import { cn } from '@/shared/utils/cn'
 import { useOnboardingQuery } from '../hooks/useOnboarding'
@@ -31,6 +30,11 @@ export default function OnboardingPage() {
     return idx >= 0 ? idx : 0
   }, [step])
 
+  useEffect(() => {
+    if (status?.completed) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [status?.completed, navigate])
 
   if (isPending) return <Loading />
 
@@ -39,12 +43,11 @@ export default function OnboardingPage() {
   }
 
   if (status.completed) {
-    return <Navigate to="/dashboard" replace />
+    return <Loading />
   }
 
   return (
     <Page>
-
       <PageContent className="mx-auto w-full max-w-3xl space-y-6 mt-4">
         <nav aria-label="Progresso do onboarding">
           <ol className="flex gap-2">

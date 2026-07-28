@@ -13,6 +13,7 @@ use App\Modules\Billing\Events\PaymentConfirmed;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Models\Subscription;
+use App\Modules\Billing\Support\PaymentDataRules;
 use App\Modules\Billing\Support\PaymentGatewayResolver;
 use App\Modules\Billing\Support\SubscriptionSuspensionRules;
 use App\Modules\Tenant\Models\Tenant;
@@ -128,6 +129,8 @@ class BillingService
             $gateway = $this->gateways->resolve($paymentGateway);
             $method = $gateway->paymentMethod();
             $dueDate = CarbonImmutable::instance($invoice->due_date ?? now());
+
+            $paymentData = PaymentDataRules::sanitize($paymentData);
 
             if (! isset($paymentData['remote_ip']) && ! isset($paymentData['remoteIp'])) {
                 $paymentData['remote_ip'] = request()?->ip();

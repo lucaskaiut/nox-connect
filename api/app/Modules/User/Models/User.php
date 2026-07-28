@@ -8,6 +8,8 @@ use App\Modules\Tenant\Models\Concerns\BelongsToTenant;
 use App\Modules\Tenant\Models\Tenant;
 use App\Modules\Tenant\Services\MasterTenantAccessService;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,9 +17,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPassword
 {
     use BelongsToTenant;
+    use CanResetPasswordTrait;
     use HasApiTokens;
 
     /** @use HasFactory<UserFactory> */
@@ -34,7 +37,6 @@ class User extends Authenticatable
         'phone',
         'document',
         'password',
-        'is_master',
     ];
 
     protected $hidden = [

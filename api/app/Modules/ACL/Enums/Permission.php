@@ -57,6 +57,8 @@ enum Permission: string
 
     case INVOICE_READ = 'invoice.read';
 
+    case MEDIA_UPLOAD = 'media.upload';
+
     /**
      * @return list<string>
      */

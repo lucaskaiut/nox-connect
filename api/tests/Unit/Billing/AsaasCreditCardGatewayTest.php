@@ -107,26 +107,11 @@ class AsaasCreditCardGatewayTest extends TestCase
         });
     }
 
-    public function test_create_payment_with_card_and_holder_processes_immediately(): void
+    public function test_create_payment_rejects_raw_card_data(): void
     {
-        Http::fake([
-            'api-sandbox.asaas.com/v3/payments' => Http::response([
-                'object' => 'payment',
-                'id' => 'pay_card_ok',
-                'status' => 'CONFIRMED',
-                'value' => 149.9,
-                'billingType' => 'CREDIT_CARD',
-                'dueDate' => '2026-07-30',
-                'invoiceUrl' => 'https://sandbox.asaas.com/i/pay_card_ok',
-                'creditCard' => [
-                    'creditCardNumber' => '8829',
-                    'creditCardBrand' => 'VISA',
-                    'creditCardToken' => 'token_abc',
-                ],
-            ]),
-        ]);
+        $this->expectException(ValidationException::class);
 
-        $payment = $this->gateway()->createPayment(new CreatePaymentDTO(
+        $this->gateway()->createPayment(new CreatePaymentDTO(
             customerExternalId: 'cus_123',
             amount: '149.90',
             paymentMethod: PaymentMethod::CREDIT_CARD,
@@ -134,37 +119,11 @@ class AsaasCreditCardGatewayTest extends TestCase
             metadata: [
                 'payment_data' => [
                     'remote_ip' => '203.0.113.10',
-                    'installments' => 3,
                     'number' => '4111111111111111',
-                    'holder_name' => 'John Doe',
-                    'exp_month' => '07',
-                    'exp_year' => '28',
                     'cvv' => '123',
-                    'credit_card_holder_info' => [
-                        'name' => 'John Doe',
-                        'email' => 'john@example.com',
-                        'cpf_cnpj' => '24971563792',
-                        'postal_code' => '01310-100',
-                        'address_number' => '100',
-                        'phone' => '11999999999',
-                    ],
                 ],
             ],
         ));
-
-        $this->assertSame(GatewayPaymentStatus::PAID, $payment->status);
-        $this->assertSame('token_abc', $payment->metadata['credit_card_token']);
-
-        Http::assertSent(function (Request $request): bool {
-            $body = $request->data();
-
-            return $body['installmentCount'] === 3
-                && $body['totalValue'] === 149.9
-                && $body['creditCard']['expiryYear'] === '2028'
-                && $body['creditCard']['number'] === '4111111111111111'
-                && $body['creditCardHolderInfo']['cpfCnpj'] === '24971563792'
-                && $body['creditCardHolderInfo']['postalCode'] === '01310100';
-        });
     }
 
     public function test_create_payment_with_token_omits_card_objects(): void

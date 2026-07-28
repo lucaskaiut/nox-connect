@@ -7,6 +7,12 @@ import { toast } from '@/shared/stores/toast.store'
 
 const GUEST_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/me']
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipErrorToast?: boolean
+  }
+}
+
 /**
  * Instância central de HTTP.
  * Autenticação via cookie HttpOnly (Sanctum stateful) — nenhum token
@@ -46,6 +52,7 @@ http.interceptors.response.use(
   (error) => {
     const apiError = parseApiError(error)
     const url = String(error?.config?.url ?? '')
+    const skipErrorToast = Boolean(error?.config?.skipErrorToast)
     const isGuestEndpoint = GUEST_ENDPOINTS.some((endpoint) => url.includes(endpoint))
 
     if (apiError.status === 401 && !isGuestEndpoint) {
@@ -58,11 +65,11 @@ http.interceptors.response.use(
       }
     }
 
-    if (apiError.status === 403) {
+    if (!skipErrorToast && apiError.status === 403) {
       toast.error('Acesso negado', apiError.message)
     }
 
-    if (apiError.status >= 500) {
+    if (!skipErrorToast && apiError.status >= 500) {
       toast.error('Erro no servidor', apiError.message)
     }
 

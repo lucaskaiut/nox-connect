@@ -3,6 +3,8 @@
 namespace App\Modules\WhatsApp\Http\Controllers;
 
 use App\Modules\ACL\Enums\Permission;
+use App\Modules\Audit\Enums\AuditAction;
+use App\Modules\Audit\Services\AuditLogService;
 use App\Modules\Shared\Http\Controllers\ApiController;
 use App\Modules\Tenant\Support\Facades\TenantContext;
 use App\Modules\WhatsApp\Contracts\WhatsAppProvider;
@@ -14,6 +16,7 @@ class WhatsAppConnectionController extends ApiController
 {
     public function __construct(
         private readonly WhatsAppProvider $provider,
+        private readonly AuditLogService $audit,
     ) {}
 
     public function show(): JsonResponse
@@ -49,6 +52,10 @@ class WhatsAppConnectionController extends ApiController
             'whatsapp_completed' => true,
         ]);
 
+        if ($user = $request->user()) {
+            $this->audit->record($user, AuditAction::WhatsAppConnected, $tenant);
+        }
+
         return $this->success([
             'provider' => $this->provider->key(),
             'connected' => true,
@@ -67,6 +74,10 @@ class WhatsAppConnectionController extends ApiController
         $tenant->mergeOnboardingSettings([
             'whatsapp_completed' => false,
         ]);
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::WhatsAppDisconnected, $tenant);
+        }
 
         return $this->success(null, 'WhatsApp desconectado.');
     }
@@ -100,17 +111,16 @@ class WhatsAppConnectionController extends ApiController
             ->limit(100)
             ->get();
 
+        // SEC-14: resumo sem headers/payload brutos por default.
         return $this->success($logs->map(fn (WhatsAppWebhookLog $log) => [
             'id' => $log->id,
             'method' => $log->method,
             'url' => $log->url,
-            'request_headers' => $log->request_headers,
-            'request_payload' => $log->request_payload,
             'response_status' => $log->response_status,
-            'response_body' => $log->response_body,
             'error_message' => $log->error_message,
             'duration_ms' => $log->duration_ms,
             'created_at' => $log->created_at?->toIso8601String(),
+            'event_summary' => $this->summarizeWebhookPayload($log->request_payload),
         ]));
     }
 
@@ -125,8 +135,36 @@ class WhatsAppConnectionController extends ApiController
      */
     private function publicSettings(array $settings): array
     {
-        unset($settings['webhook_verify_token']);
+        unset(
+            $settings['webhook_verify_token'],
+            $settings['connection_id'],
+            $settings['session_id'],
+            $settings['access_token'],
+            $settings['api_token'],
+        );
 
         return $settings;
+    }
+
+    /**
+     * @param  mixed  $payload
+     * @return array<string, mixed>
+     */
+    private function summarizeWebhookPayload(mixed $payload): array
+    {
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        return array_filter([
+            'object' => $payload['object'] ?? null,
+            'event' => $payload['event'] ?? $payload['type'] ?? null,
+            'message_count' => isset($payload['messages']) && is_array($payload['messages'])
+                ? count($payload['messages'])
+                : null,
+            'status_count' => isset($payload['statuses']) && is_array($payload['statuses'])
+                ? count($payload['statuses'])
+                : null,
+        ], fn (mixed $v): bool => $v !== null);
     }
 }

@@ -13,10 +13,8 @@ import {
   ThemeToggle,
 } from '@/shared/design-system'
 import { parseApiError } from '@/shared/api/errors'
-import { useSessionStore } from '@/shared/stores/session.store'
 import { formatCurrency, formatDateTime } from '@/shared/utils/format'
 import { toast } from '@/shared/stores/toast.store'
-import { CreditCardPaymentForm } from '../components/payment/CreditCardPaymentForm'
 import { checkoutService } from '../services/checkout.service'
 import type { PaymentMethodOption } from '../store/register-checkout.store'
 import type { Invoice } from '@/shared/types/models'
@@ -80,7 +78,6 @@ export default function PaymentPendingPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const invoiceId = params.get('invoice') ?? ''
-  const tenant = useSessionStore((state) => state.tenant)
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [methods, setMethods] = useState<PaymentMethodOption[]>([])
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null)
@@ -323,17 +320,20 @@ export default function PaymentPendingPage() {
                 />
 
                 {isCreditCard ? (
-                  <CreditCardPaymentForm
-                    amount={invoice.amount}
-                    defaults={{
-                      name: tenant?.name,
-                      email: tenant?.email,
-                      document: tenant?.document,
-                      phone: tenant?.phone,
-                    }}
-                    loading={initiating}
-                    onSubmit={startPayment}
-                  />
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted">
+                      Por segurança, os dados do cartão são informados na fatura segura do Asaas.
+                      Clique abaixo para gerar a cobrança e concluir o pagamento.
+                    </p>
+                    <Button
+                      onClick={() => void startPayment()}
+                      loading={initiating}
+                      disabled={!selectedMethodId}
+                      className="w-full sm:w-auto sm:min-w-64"
+                    >
+                      Continuar para pagamento
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     onClick={() => void startPayment()}

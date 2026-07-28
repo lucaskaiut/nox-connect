@@ -6,11 +6,13 @@ use App\Modules\Shared\Http\Controllers\ApiController;
 use App\Modules\WhatsApp\Http\Requests\MoveStageRequest;
 use App\Modules\WhatsApp\Http\Requests\StoreKanbanStageRequest;
 use App\Modules\WhatsApp\Http\Requests\UpdateKanbanStageRequest;
+use App\Modules\WhatsApp\Http\Resources\ConversationResource;
 use App\Modules\WhatsApp\Http\Resources\KanbanStageResource;
 use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Services\KanbanService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class KanbanController extends ApiController
 {
@@ -21,6 +23,19 @@ class KanbanController extends ApiController
     public function board(): JsonResponse
     {
         return $this->success($this->service->getConversationsByStage());
+    }
+
+    public function stageConversations(Request $request, KanbanStage $stage): JsonResponse
+    {
+        $this->authorize('viewAny', WhatsAppConversation::class);
+
+        $perPage = min(100, max(1, (int) $request->integer('per_page', 20)));
+
+        return $this->paginated(
+            ConversationResource::collection(
+                $this->service->listConversationsForStage($stage, $perPage)
+            )
+        );
     }
 
     public function stages(): JsonResponse

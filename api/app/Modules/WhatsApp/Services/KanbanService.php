@@ -2,13 +2,13 @@
 
 namespace App\Modules\WhatsApp\Services;
 
-use App\Modules\Tenant\Support\Facades\TenantContext;
-use App\Modules\WhatsApp\Events\KanbanCardCreated;
 use App\Modules\WhatsApp\Events\KanbanCardMoved;
 use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationStageMove;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class KanbanService
 {
@@ -36,6 +36,10 @@ class KanbanService
 
     public function moveConversation(WhatsAppConversation $conversation, ?int $stageId, string $userId): void
     {
+        if ($stageId !== null && KanbanStage::query()->find($stageId) === null) {
+            throw (new ModelNotFoundException)->setModel(KanbanStage::class, [$stageId]);
+        }
+
         $fromStageId = $conversation->current_stage_id;
 
         WhatsAppConversationStageMove::query()->create([
@@ -65,6 +69,11 @@ class KanbanService
         return $conversation->stageMoves()->with(['stage', 'user'])->get();
     }
 
+    /**
+     * @deprecated Prefer listConversationsForStage() with cursor pagination.
+     *
+     * @return list<array{stage: KanbanStage, conversations: Collection<int, WhatsAppConversation>}>
+     */
     public function getConversationsByStage(): array
     {
         $stages = $this->listStages();
@@ -74,7 +83,9 @@ class KanbanService
             $conversations = WhatsAppConversation::query()
                 ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
                 ->where('current_stage_id', $stage->id)
-                ->latest('last_message_at')
+                ->orderByDesc('last_message_at')
+                ->orderByDesc('id')
+                ->limit(20)
                 ->get();
 
             $result[] = [
@@ -84,6 +95,16 @@ class KanbanService
         }
 
         return $result;
+    }
+
+    public function listConversationsForStage(KanbanStage $stage, int $perPage = 20): CursorPaginator
+    {
+        return WhatsAppConversation::query()
+            ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
+            ->where('current_stage_id', $stage->id)
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id')
+            ->cursorPaginate($perPage);
     }
 
     public function seedDefaultStages(): void

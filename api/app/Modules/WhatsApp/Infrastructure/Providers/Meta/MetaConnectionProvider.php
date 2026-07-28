@@ -8,6 +8,7 @@ use App\Modules\WhatsApp\DTOs\ConnectionInitializationDTO;
 use App\Modules\WhatsApp\DTOs\ConnectionResultDTO;
 use App\Modules\WhatsApp\DTOs\ConnectionStatusDTO;
 use App\Modules\WhatsApp\Enums\WhatsAppProviderKey;
+use App\Modules\WhatsApp\Services\WhatsAppConnectionOwnership;
 use Illuminate\Support\Str;
 
 /**
@@ -36,21 +37,23 @@ final class MetaConnectionProvider implements WhatsAppConnectionProvider
 
     public function initialize(Tenant $tenant): ConnectionInitializationDTO
     {
-        unset($tenant);
+        $connectionNonce = WhatsAppConnectionOwnership::beginConnect($tenant);
 
         return new ConnectionInitializationDTO(
             type: 'form',
             provider: $this->key(),
-            configuration: $this->getConfiguration(),
+            configuration: [
+                ...$this->getConfiguration(),
+                'connection_nonce' => $connectionNonce,
+            ],
         );
     }
 
     public function complete(Tenant $tenant, array $payload): ConnectionResultDTO
     {
-        unset($tenant);
-
         $accountId = (string) ($payload['account_id'] ?? '');
         $channelId = (string) ($payload['channel_id'] ?? '');
+        $nonce = isset($payload['connection_nonce']) ? (string) $payload['connection_nonce'] : null;
 
         if ($accountId === '' || $channelId === '') {
             return new ConnectionResultDTO(
@@ -59,6 +62,11 @@ final class MetaConnectionProvider implements WhatsAppConnectionProvider
                 message: 'account_id e channel_id são obrigatórios.',
             );
         }
+
+        // SEC-03/SEC-04 (lado nosso): nonce + canal não claimado por outro tenant.
+        // Claim via token global Meta ainda exige Embedded Signup / provisioning (AP-03).
+        WhatsAppConnectionOwnership::assertConnectNonce($tenant, $nonce);
+        WhatsAppConnectionOwnership::assertExternalIdAvailable($tenant, $channelId, 'channel_id');
 
         try {
             $ok = $this->client->verifyChannel($channelId);
@@ -77,6 +85,8 @@ final class MetaConnectionProvider implements WhatsAppConnectionProvider
                 message: 'Falha ao validar o canal com as credenciais globais.',
             );
         }
+
+        WhatsAppConnectionOwnership::clearConnectNonce($tenant);
 
         return new ConnectionResultDTO(
             settings: [

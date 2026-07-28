@@ -4,6 +4,7 @@ namespace App\Modules\ACL\Http\Middleware;
 
 use App\Modules\ACL\Enums\Permission;
 use App\Modules\ApiToken\Models\ApiToken;
+use App\Modules\User\Models\User;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -19,29 +20,40 @@ class EnsurePermission
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
+        $permissions = array_map('trim', explode('|', $permission));
+        $enums = [];
+
+        foreach ($permissions as $value) {
+            $enum = Permission::tryFrom($value);
+
+            if ($enum === null) {
+                throw new InvalidArgumentException("Permissão desconhecida [{$value}].");
+            }
+
+            $enums[] = $enum;
+        }
+
         $apiToken = $request->attributes->get('api_token');
         $user = $request->user();
 
-        $enum = Permission::tryFrom($permission);
-
-        if ($enum === null) {
-            throw new InvalidArgumentException("Permissão desconhecida [{$permission}].");
-        }
-
         if ($apiToken instanceof ApiToken) {
-            if (! $apiToken->can($permission)) {
-                throw new AuthorizationException('Este token não possui escopo para executar esta ação.');
+            foreach ($enums as $enum) {
+                if ($apiToken->can($enum->value)) {
+                    return $next($request);
+                }
             }
 
-            return $next($request);
+            throw new AuthorizationException('Este token não possui escopo para executar esta ação.');
         }
 
-        if ($user !== null) {
-            if (! $user->hasPermission($enum)) {
-                throw new AuthorizationException('Você não possui permissão para executar esta ação.');
+        if ($user instanceof User) {
+            foreach ($enums as $enum) {
+                if ($user->hasPermission($enum)) {
+                    return $next($request);
+                }
             }
 
-            return $next($request);
+            throw new AuthorizationException('Você não possui permissão para executar esta ação.');
         }
 
         throw new AuthenticationException;

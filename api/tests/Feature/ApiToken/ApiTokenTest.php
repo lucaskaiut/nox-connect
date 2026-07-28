@@ -42,7 +42,10 @@ class ApiTokenTest extends TestCase
 
         Sanctum::actingAs($this->createAdmin($tenant));
 
-        $response = $this->postJson('/api/api-tokens', ['name' => 'Integração ERP'])
+        $response = $this->postJson('/api/api-tokens', [
+            'name' => 'Integração ERP',
+            'permissions' => [Permission::USER_READ->value],
+        ])
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonStructure(['data' => ['token', 'api_token' => ['id', 'name']]]);
@@ -161,7 +164,10 @@ class ApiTokenTest extends TestCase
 
         $this->getJson('/api/api-tokens')->assertOk();
 
-        $created = $this->postJson('/api/api-tokens', ['name' => 'ERP'])
+        $created = $this->postJson('/api/api-tokens', [
+            'name' => 'ERP',
+            'permissions' => [Permission::USER_READ->value],
+        ])
             ->assertCreated()
             ->json('data.api_token.id');
 
@@ -197,7 +203,7 @@ class ApiTokenTest extends TestCase
             ->assertJsonPath('message', 'Este token não possui escopo para executar esta ação.');
     }
 
-    public function test_token_with_null_permissions_has_full_access(): void
+    public function test_token_with_null_permissions_is_denied(): void
     {
         $tenant = $this->createTenantWithRoles();
 
@@ -209,8 +215,25 @@ class ApiTokenTest extends TestCase
 
         $headers = ['Authorization' => "Bearer {$plain}"];
 
-        $this->getJson('/api/testing/users-read', $headers)->assertOk();
-        $this->postJson('/api/testing/users-create', [], $headers)->assertOk();
+        $this->getJson('/api/testing/users-read', $headers)
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Este token não possui escopo para executar esta ação.');
+    }
+
+    public function test_create_token_requires_at_least_one_permission(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+
+        Sanctum::actingAs($this->createAdmin($tenant));
+
+        $this->postJson('/api/api-tokens', [
+            'name' => 'Sem escopo',
+            'permissions' => [],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['permissions']);
+
+        $this->postJson('/api/api-tokens', [
+            'name' => 'Sem campo permissions',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['permissions']);
     }
 
     public function test_token_with_empty_permissions_cannot_access_anything_scoped(): void

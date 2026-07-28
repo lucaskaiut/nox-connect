@@ -38,7 +38,6 @@ export interface OnboardingStatus {
   whatsapp: {
     connected: boolean
     phone_number: string | null
-    connection_id: string | null
   }
   connection_message?: string
 }

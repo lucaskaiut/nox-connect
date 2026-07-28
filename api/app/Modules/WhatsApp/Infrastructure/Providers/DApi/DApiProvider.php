@@ -21,6 +21,7 @@ use App\Modules\WhatsApp\DTOs\TemplateDTO;
 use App\Modules\WhatsApp\DTOs\TemplateListResultDTO;
 use App\Modules\WhatsApp\DTOs\UpdateTemplateDTO;
 use App\Modules\WhatsApp\Enums\WhatsAppProviderKey;
+use App\Modules\WhatsApp\Services\WhatsAppConnectionOwnership;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -41,25 +42,30 @@ final class DApiProvider implements WhatsAppProvider, WhatsAppTemplateCatalog
             throw new InvalidArgumentException('Credencial global WHATSAPP_SECRET_KEY não configurada.');
         }
 
-        $sessionId = (string) ($input['session_id'] ?? '');
+        // SEC-03/SEC-25: sessão sempre criada no backend com ID opaco.
+        // Nunca aceitar session_id/connection_id arbitrário do cliente (takeover).
+        if (filled($input['session_id'] ?? null) || filled($input['connection_id'] ?? null)) {
+            return new ConnectionResultDTO(
+                settings: [],
+                connected: false,
+                message: 'Não é permitido informar session_id/connection_id manualmente.',
+            );
+        }
+
+        $sessionId = (string) Str::ulid();
         $webhookUrl = url('/api/webhooks/whatsapp/'.$tenant->uuid);
 
         try {
-            if ($sessionId === '') {
-                $sessionId = 'nox-'.$tenant->uuid;
-                $response = $this->client->createSession([
-                    'sessionId' => $sessionId,
-                    'type' => $input['type'] ?? 'unofficial',
-                    'webhookUrl' => $webhookUrl,
-                    'connectionMode' => $input['connection_mode'] ?? 'qr',
-                    'metadata' => [
-                        'tenant_uuid' => $tenant->uuid,
-                        'public_key' => $this->client->publicKey(),
-                    ],
-                ]);
-            } else {
-                $response = $this->client->getSession($sessionId);
-            }
+            $response = $this->client->createSession([
+                'sessionId' => $sessionId,
+                'type' => $input['type'] ?? 'unofficial',
+                'webhookUrl' => $webhookUrl,
+                'connectionMode' => $input['connection_mode'] ?? 'qr',
+                'metadata' => [
+                    'tenant_uuid' => $tenant->uuid,
+                    'public_key' => $this->client->publicKey(),
+                ],
+            ]);
         } catch (\Throwable $e) {
             return new ConnectionResultDTO(
                 settings: [],
@@ -84,11 +90,13 @@ final class DApiProvider implements WhatsAppProvider, WhatsAppTemplateCatalog
         );
 
         $connectionId = (string) (
-            $input['connection_id']
-            ?? data_get($response, 'data.connectionId')
+            data_get($response, 'data.connectionId')
             ?? data_get($response, 'data.connection_id')
             ?? $resolvedSessionId
         );
+
+        WhatsAppConnectionOwnership::assertExternalIdAvailable($tenant, $connectionId);
+        WhatsAppConnectionOwnership::assertExternalIdAvailable($tenant, $resolvedSessionId, 'session_id');
 
         return new ConnectionResultDTO(
             settings: [
@@ -323,31 +331,42 @@ final class DApiProvider implements WhatsAppProvider, WhatsAppTemplateCatalog
     }
 
     /**
+     * Converte a resposta da D-API no formato canônico do sistema.
+     *
+     * Formato conhecido da D-API (envio):
+     * { success, messageId, message?, error?, code? }
+     *
      * @param  array<string, mixed>  $response
      */
     private function mapSendResult(array $response): MessageResultDTO
     {
-        $externalId = data_get($response, 'data.id')
-            ?? data_get($response, 'data.messageId')
-            ?? data_get($response, 'data.message_id')
-            ?? data_get($response, 'data.key.id')
-            ?? data_get($response, 'messages.0.id');
+        $success = ($response['success'] ?? false) === true;
+        $externalId = $response['messageId'] ?? null;
 
-        if (is_string($externalId) && $externalId !== '' && ($response['success'] ?? true) !== false) {
+        if ($success && is_string($externalId) && $externalId !== '') {
             return MessageResultDTO::success($externalId, $response);
         }
 
-        $error = isset($response['error'])
-            ? new ProviderErrorDTO(
-                message: is_string($response['error'])
-                    ? $response['error']
-                    : (string) data_get($response, 'error.message', 'Erro desconhecido do provedor'),
-                code: isset($response['statusCode']) ? (string) $response['statusCode'] : (isset($response['code']) ? (string) $response['code'] : null),
-                raw: is_array($response['error'] ?? null) ? $response['error'] : $response,
-            )
-            : new ProviderErrorDTO(message: 'Erro desconhecido do provedor', raw: $response);
+        $errorMessage = null;
+        $errorCode = isset($response['code']) ? (string) $response['code'] : (isset($response['statusCode']) ? (string) $response['statusCode'] : null);
 
-        return MessageResultDTO::failure($error, $response);
+        if (is_string($response['error'] ?? null)) {
+            $errorMessage = $response['error'];
+        } elseif (is_array($response['error'] ?? null)) {
+            $errorMessage = (string) ($response['error']['message'] ?? 'Erro desconhecido do provedor');
+            $errorCode ??= isset($response['error']['code']) ? (string) $response['error']['code'] : null;
+        } elseif (is_string($response['message'] ?? null) && ! $success) {
+            $errorMessage = $response['message'];
+        }
+
+        return MessageResultDTO::failure(
+            new ProviderErrorDTO(
+                code: $errorCode,
+                message: $errorMessage ?? 'Erro desconhecido do provedor',
+                raw: $response,
+            ),
+            $response,
+        );
     }
 
     /**

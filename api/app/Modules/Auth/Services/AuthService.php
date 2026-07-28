@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -61,6 +62,11 @@ class AuthService
                 $roles = $this->roles->createDefaultRolesFor($tenant);
 
                 $user = $this->users->createForTenant($tenant, $userData->toArray());
+
+                if ($tenant->isUmbrella()) {
+                    $user->forceFill(['is_master' => true])->save();
+                }
+
                 $user->assignRole($roles[DefaultRole::ADMINISTRATOR->value]);
 
                 $invoice = null;
@@ -142,6 +148,42 @@ class AuthService
         );
     }
 
+    /**
+     * Envia link de redefinição de senha. Resposta sempre genérica (não revela se o e-mail existe).
+     * MFA (SEC-19) permanece deferido — ver backlog de segurança.
+     */
+    public function sendPasswordResetLink(string $email): void
+    {
+        $user = User::query()->withoutTenancy()->where('email', $email)->first();
+
+        if ($user === null) {
+            return;
+        }
+
+        $token = Password::broker()->createToken($user);
+        $user->sendPasswordResetNotification($token);
+    }
+
+    /**
+     * @param  array{email: string, password: string, password_confirmation: string, token: string}  $credentials
+     *
+     * @throws ValidationException
+     */
+    public function resetPassword(array $credentials): void
+    {
+        $user = User::query()->withoutTenancy()->where('email', $credentials['email'])->first();
+
+        if ($user === null || ! Password::broker()->tokenExists($user, $credentials['token'])) {
+            throw ValidationException::withMessages([
+                'email' => [__('passwords.token')],
+            ]);
+        }
+
+        $user->forceFill(['password' => $credentials['password']])->save();
+        $user->tokens()->delete();
+        Password::broker()->deleteToken($user);
+    }
+
     public function logout(User $user): void
     {
         $token = $user->currentAccessToken();
@@ -149,6 +191,19 @@ class AuthService
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
         }
+
+        $request = request();
+
+        if ($request->hasSession()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+    }
+
+    public function logoutAllDevices(User $user): void
+    {
+        $user->tokens()->delete();
 
         $request = request();
 
@@ -209,6 +264,8 @@ class AuthService
 
             return null;
         }
+
+        $user->tokens()->where('name', self::TOKEN_NAME)->delete();
 
         return $user->createToken(self::TOKEN_NAME)->plainTextToken;
     }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Modules\ACL\Enums\DefaultRole;
 use App\Modules\ACL\Enums\Permission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -92,6 +93,51 @@ class LoginTest extends TestCase
         $this->getJson('/api/auth/me', $headers)
             ->assertUnauthorized()
             ->assertJsonPath('success', false);
+    }
+
+    public function test_login_revokes_previous_tokens_with_same_name(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+        $this->createAdmin($tenant, ['email' => 'admin@empresa.com']);
+
+        $token1 = $this->postJson('/api/auth/login', [
+            'email' => 'admin@empresa.com',
+            'password' => 'password',
+        ])->json('data.token');
+
+        $token2 = $this->postJson('/api/auth/login', [
+            'email' => 'admin@empresa.com',
+            'password' => 'password',
+        ])->json('data.token');
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        $this->app->get('auth')->forgetGuards();
+
+        $this->getJson('/api/auth/me', ['Authorization' => "Bearer {$token1}"])
+            ->assertUnauthorized();
+
+        $this->getJson('/api/auth/me', ['Authorization' => "Bearer {$token2}"])
+            ->assertOk();
+    }
+
+    public function test_logout_all_revokes_all_tokens(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+        $admin = $this->createAdmin($tenant, ['email' => 'admin@empresa.com']);
+
+        $token = $admin->createToken('other_device')->plainTextToken;
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/auth/logout-all')->assertOk();
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        $this->app->get('auth')->forgetGuards();
+
+        $this->getJson('/api/auth/me', ['Authorization' => "Bearer {$token}"])
+            ->assertUnauthorized();
     }
 
     public function test_unauthenticated_request_receives_401(): void

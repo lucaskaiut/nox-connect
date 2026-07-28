@@ -23,9 +23,12 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function (): void {
     Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth');
+    Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+    Route::post('reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
 
     Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('logout-all', [AuthController::class, 'logoutAll']);
         Route::get('me', [AuthController::class, 'me']);
         Route::post('select-tenant', [AuthController::class, 'selectTenant']);
     });
@@ -49,10 +52,10 @@ Route::middleware(['auth.multi:sanctum', 'tenant'])->group(function (): void {
     });
 
     Route::get('onboarding', [OnboardingController::class, 'show']);
-    Route::post('onboarding/company', [OnboardingController::class, 'completeCompany']);
-    Route::get('onboarding/whatsapp/initialize', [OnboardingController::class, 'initializeWhatsApp']);
-    Route::post('onboarding/whatsapp/complete', [OnboardingController::class, 'completeWhatsApp']);
-    Route::post('onboarding/finish', [OnboardingController::class, 'finish']);
+    Route::post('onboarding/company', [OnboardingController::class, 'completeCompany'])->middleware('permission:tenant.update');
+    Route::get('onboarding/whatsapp/initialize', [OnboardingController::class, 'initializeWhatsApp'])->middleware('permission:whatsapp-config.create|tenant.update');
+    Route::post('onboarding/whatsapp/complete', [OnboardingController::class, 'completeWhatsApp'])->middleware('permission:whatsapp-config.create|tenant.update');
+    Route::post('onboarding/finish', [OnboardingController::class, 'finish'])->middleware('permission:tenant.update');
 });
 
 Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed'])->group(function (): void {
@@ -87,7 +90,7 @@ Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subs
     Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:role.delete');
 
     Route::get('api-tokens', [ApiTokenController::class, 'index'])->middleware('permission:api-token.read');
-    Route::post('api-tokens', [ApiTokenController::class, 'store'])->middleware('permission:api-token.create');
+    Route::post('api-tokens', [ApiTokenController::class, 'store'])->middleware(['permission:api-token.create', 'throttle:api-tokens-create']);
     Route::delete('api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->middleware('permission:api-token.delete');
 
     Route::get('webhooks', [WebhookController::class, 'index'])->middleware('permission:webhook.read');
@@ -98,7 +101,7 @@ Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subs
     Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->middleware('permission:webhook.delete');
     Route::get('webhooks/{webhook}/logs', [WebhookController::class, 'logs'])->middleware('permission:webhook.read');
 
-    Route::post('uploads', FileUploadController::class);
+    Route::post('uploads', FileUploadController::class)->middleware(['permission:media.upload', 'throttle:uploads']);
 
     Route::middleware('tenant.child')->group(function (): void {
         Route::get('whatsapp/conversations/stats', [ConversationController::class, 'stats'])->middleware('permission:whatsapp.conversation.read');
@@ -111,7 +114,8 @@ Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subs
 
         Route::get('whatsapp/conversations', [ConversationController::class, 'index'])->middleware('permission:whatsapp.conversation.read');
         Route::get('whatsapp/conversations/{conversation}', [ConversationController::class, 'show'])->middleware('permission:whatsapp.conversation.read');
-        Route::post('whatsapp/conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])->middleware('permission:whatsapp.conversation.update');
+        Route::get('whatsapp/conversations/{conversation}/messages', [ConversationController::class, 'messages'])->middleware('permission:whatsapp.conversation.read');
+        Route::post('whatsapp/conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])->middleware(['permission:whatsapp.conversation.update', 'throttle:whatsapp-send']);
         Route::post('whatsapp/conversations/{conversation}/assign', [ConversationController::class, 'assign'])->middleware('permission:whatsapp.conversation.update');
         Route::post('whatsapp/conversations/{conversation}/transfer', [ConversationController::class, 'transfer'])->middleware('permission:whatsapp.conversation.update');
         Route::post('whatsapp/conversations/{conversation}/remove-assignment', [ConversationController::class, 'removeAssignment'])->middleware('permission:whatsapp.conversation.update');
@@ -138,6 +142,7 @@ Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subs
 
         Route::get('whatsapp/kanban/board', [KanbanController::class, 'board'])->middleware('permission:whatsapp.kanban.read');
         Route::get('whatsapp/kanban/stages', [KanbanController::class, 'stages'])->middleware('permission:whatsapp.kanban.read');
+        Route::get('whatsapp/kanban/stages/{stage}/conversations', [KanbanController::class, 'stageConversations'])->middleware('permission:whatsapp.kanban.read');
         Route::post('whatsapp/kanban/stages', [KanbanController::class, 'storeStage'])->middleware('permission:whatsapp.kanban.update');
         Route::match(['put', 'patch'], 'whatsapp/kanban/stages/{stage}', [KanbanController::class, 'updateStage'])->middleware('permission:whatsapp.kanban.update');
         Route::delete('whatsapp/kanban/stages/{stage}', [KanbanController::class, 'deleteStage'])->middleware('permission:whatsapp.kanban.update');
@@ -147,4 +152,5 @@ Route::middleware(['auth.multi:sanctum', 'tenant', 'onboarding.completed', 'subs
     });
 });
 
-Route::match(['get', 'post'], 'webhooks/whatsapp/{tenantUuid}', [WhatsAppWebhookController::class, 'receive']);
+Route::match(['get', 'post'], 'webhooks/whatsapp/{tenantUuid}', [WhatsAppWebhookController::class, 'receive'])
+    ->middleware('throttle:webhook-inbound');

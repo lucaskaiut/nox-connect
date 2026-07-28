@@ -5,6 +5,8 @@ namespace Tests\Concerns;
 use App\Modules\ACL\Enums\DefaultRole;
 use App\Modules\ACL\Models\Role;
 use App\Modules\ACL\Services\RoleService;
+use App\Modules\Billing\Models\Plan;
+use App\Modules\Billing\Models\Subscription;
 use App\Modules\Tenant\Models\Tenant;
 use App\Modules\Tenant\Support\CurrentTenant;
 use App\Modules\User\Models\User;
@@ -67,5 +69,33 @@ trait InteractsWithTenants
     protected function forgetTenantContext(): void
     {
         app(CurrentTenant::class)->forget();
+    }
+
+    /**
+     * @return array{0: Tenant, 1: Tenant}
+     */
+    protected function createOperationalChild(?Tenant $umbrella = null, array $childAttributes = []): array
+    {
+        $umbrella ??= $this->createTenantWithRoles();
+
+        $child = $this->createChildTenant($umbrella, [
+            ...$childAttributes,
+            'settings' => array_merge(
+                [
+                    'onboarding' => [
+                        'company_completed' => true,
+                        'whatsapp_completed' => true,
+                        'current_step' => 'finish',
+                        'completed_at' => now()->toIso8601String(),
+                    ],
+                ],
+                $childAttributes['settings'] ?? [],
+            ),
+        ]);
+
+        $plan = Plan::factory()->forTenant($umbrella)->create();
+        Subscription::factory()->forTenant($child)->forPlan($plan)->active()->create();
+
+        return [$umbrella, $child];
     }
 }

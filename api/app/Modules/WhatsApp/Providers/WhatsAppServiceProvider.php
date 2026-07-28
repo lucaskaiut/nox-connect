@@ -39,6 +39,12 @@ class WhatsAppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \App\Modules\WhatsApp\Console\Commands\PruneWebhookLogsCommand::class,
+            ]);
+        }
+
         $this->app->make(WebhookEventRegistry::class)->register([
             'whatsapp.message.received' => 'Mensagem recebida',
             'whatsapp.message.sent' => 'Mensagem enviada',

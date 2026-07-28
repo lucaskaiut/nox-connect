@@ -45,6 +45,7 @@ class MessageService
         }
 
         $message = WhatsAppMessage::query()->create([
+            'tenant_id' => $conversation->tenant_id,
             'conversation_id' => $conversation->id,
             'direction' => MessageDirection::Outbound->value,
             'message_type' => 'text',
@@ -119,6 +120,7 @@ class MessageService
         }
 
         $message = WhatsAppMessage::query()->create([
+            'tenant_id' => $conversation->tenant_id,
             'conversation_id' => $conversation->id,
             'direction' => MessageDirection::Outbound->value,
             'message_type' => $type,

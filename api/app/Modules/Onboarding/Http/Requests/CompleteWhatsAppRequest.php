@@ -8,7 +8,7 @@ class CompleteWhatsAppRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
     /**
@@ -21,6 +21,7 @@ class CompleteWhatsAppRequest extends FormRequest
         return [
             'connection_id' => ['nullable', 'string', 'max:255'],
             'connectionId' => ['nullable', 'string', 'max:255'],
+            'connection_nonce' => ['nullable', 'string', 'max:128'],
             'phone_number' => ['nullable', 'string', 'max:40'],
             'phoneNumber' => ['nullable', 'string', 'max:40'],
             'status' => ['nullable', 'string', 'max:50'],

@@ -43,13 +43,15 @@ export interface WebhookLogEntry {
   id: number
   method: string
   url: string | null
-  request_headers: Record<string, string[]> | null
-  request_payload: Record<string, unknown> | null
   response_status: number | null
-  response_body: string | null
-  error_message: string | null
   duration_ms: number | null
   created_at: string | null
+  summary?: {
+    payload_keys: string[]
+    payload_summary: Record<string, unknown>
+    has_sensitive_headers: boolean
+    error_present: boolean
+  }
 }
 
 export interface TemplateParams {
@@ -124,8 +126,23 @@ export const whatsappService = {
     return response.data.data
   },
 
+  async listMessages(
+    conversationId: number,
+    params?: { cursor?: string | null; per_page?: number },
+  ): Promise<CursorPaginatedResponse<WhatsAppMessage>> {
+    const response = await http.get<CursorPaginatedResponse<WhatsAppMessage>>(
+      `/whatsapp/conversations/${conversationId}/messages`,
+      { params },
+    )
+    return response.data
+  },
+
   async sendMessage(id: number, content: string): Promise<WhatsAppMessage> {
-    const response = await http.post<ApiResponse<WhatsAppMessage>>(`/whatsapp/conversations/${id}/messages`, { content })
+    const response = await http.post<ApiResponse<WhatsAppMessage>>(
+      `/whatsapp/conversations/${id}/messages`,
+      { content },
+      { skipErrorToast: true },
+    )
     return response.data.data
   },
 
@@ -196,6 +213,17 @@ export const whatsappService = {
   async getKanbanBoard(): Promise<KanbanColumn[]> {
     const response = await http.get<ApiResponse<KanbanColumn[]>>('/whatsapp/kanban/board')
     return response.data.data
+  },
+
+  async listKanbanStageConversations(
+    stageId: number,
+    params?: { cursor?: string | null; per_page?: number },
+  ): Promise<CursorPaginatedResponse<WhatsAppConversation>> {
+    const response = await http.get<CursorPaginatedResponse<WhatsAppConversation>>(
+      `/whatsapp/kanban/stages/${stageId}/conversations`,
+      { params },
+    )
+    return response.data
   },
 
   async listKanbanStages(): Promise<KanbanStage[]> {

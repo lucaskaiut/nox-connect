@@ -35,6 +35,7 @@ import { cn } from '@/shared/utils/cn'
 import {
   useConversationsQuery,
   useConversationQuery,
+  useMessagesQuery,
   useSendMessage,
   useAssignConversation,
   useTransferConversation,
@@ -53,6 +54,7 @@ import {
 } from '../components/ChatComponents'
 import { TemplateModal } from '../components/TemplateModal'
 import type { ConversationFilters } from '../services/whatsapp.service'
+import type { WhatsAppMessage } from '@/shared/types/models'
 
 const PER_PAGE = 20
 
@@ -272,8 +274,12 @@ function ChatPanel({
 }) {
   const currentUser = useSessionStore((state) => state.user)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesTopRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const prevScrollHeightRef = useRef<number | null>(null)
 
   const { data: conversation, isLoading } = useConversationQuery(conversationId)
+  const messagesQuery = useMessagesQuery(conversationId)
   useConversationChannel(conversationId)
   const { data: usersData } = useUsersQuery({ per_page: 100 })
 
@@ -297,7 +303,7 @@ function ChatPanel({
 
   const isClosed = conversation?.status === 'closed'
   const windowOpen = conversation?.is_window_open ?? true
-  const messages = conversation?.messages ?? []
+  const messages = [...(messagesQuery.data?.pages.flatMap((page) => page.data) ?? [])].reverse()
   const notes = conversation?.notes ?? []
   const assignedUser = conversation?.current_assignment?.user ?? null
   const selectedTagIds = conversation?.tags?.map((t) => t.id) ?? []
@@ -312,11 +318,53 @@ function ChatPanel({
     }
   }, [conversation?.id])
 
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container || prevScrollHeightRef.current == null) return
+    container.scrollTop = container.scrollHeight - prevScrollHeightRef.current
+    prevScrollHeightRef.current = null
+  }, [messagesQuery.data?.pages.length])
+
+  useEffect(() => {
+    const sentinel = messagesTopRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          messagesQuery.hasNextPage &&
+          !messagesQuery.isFetchingNextPage
+        ) {
+          const container = messagesContainerRef.current
+          if (container) {
+            prevScrollHeightRef.current = container.scrollHeight
+          }
+          void messagesQuery.fetchNextPage()
+        }
+      },
+      { root: messagesContainerRef.current, rootMargin: '80px 0px 0px 0px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [messagesQuery.hasNextPage, messagesQuery.isFetchingNextPage, messagesQuery.fetchNextPage])
+
   const handleSendMessage = () => {
     const text = messageText.trim()
     if (!text || isClosed) return
     sendMessage.mutate({ id: conversationId, content: text })
     setMessageText('')
+  }
+
+  const handleRetryMessage = (message: WhatsAppMessage) => {
+    const content = message.content?.trim()
+    if (!content || isClosed || message.status === 'pending') return
+    sendMessage.mutate({
+      id: conversationId,
+      content,
+      optimisticId: message.id,
+    })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -527,8 +575,12 @@ function ChatPanel({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div ref={messagesTopRef} className="h-px" />
+        {messagesQuery.isFetchingNextPage && (
+          <p className="py-2 text-center text-xs text-muted">Carregando mensagens anteriores...</p>
+        )}
+        {messages.length === 0 && !messagesQuery.isPending && (
           <div className="flex h-full items-center justify-center text-muted text-sm">
             Nenhuma mensagem nesta conversa.
           </div>
@@ -538,6 +590,7 @@ function ChatPanel({
             key={message.id}
             message={message}
             isOutbound={message.direction === 'outbound'}
+            onRetry={handleRetryMessage}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -571,7 +624,7 @@ function ChatPanel({
               rows={1}
               className="min-h-10 max-h-32 resize-none"
             />
-            <Button size="sm" onClick={handleSendMessage} loading={sendMessage.isPending} disabled={!messageText.trim() || isClosed}>
+            <Button size="sm" onClick={handleSendMessage} disabled={!messageText.trim() || isClosed}>
               <Send className="size-4" />
             </Button>
           </>

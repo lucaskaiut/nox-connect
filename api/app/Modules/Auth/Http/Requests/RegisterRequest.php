@@ -3,6 +3,7 @@
 namespace App\Modules\Auth\Http\Requests;
 
 use App\Modules\Billing\Models\Plan;
+use App\Modules\Billing\Support\PaymentDataRules;
 use App\Modules\Billing\Support\PaymentGatewayResolver;
 use App\Modules\Shared\Rules\Cpf;
 use App\Modules\Shared\Rules\CpfOrCnpj;
@@ -57,7 +58,7 @@ class RegisterRequest extends FormRequest
                 'string',
                 Rule::in(app(PaymentGatewayResolver::class)->activeKeys()),
             ],
-            'payment_data' => ['nullable', 'array'],
+            ...PaymentDataRules::validationRules(),
         ];
     }
 

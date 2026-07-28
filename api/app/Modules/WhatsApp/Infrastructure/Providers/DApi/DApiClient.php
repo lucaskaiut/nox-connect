@@ -29,13 +29,23 @@ final class DApiClient
         return (string) config('whatsapp.credentials.secret_key');
     }
 
+    /**
+     * Identificador da sessão/conexão D-API usada no envio.
+     * Na Cloud API (SaaS), connectionId e sessionId são o mesmo valor.
+     */
     public function sessionId(Tenant $tenant): string
     {
-        return (string) $tenant->whatsappSetting('session_id');
+        $sessionId = (string) $tenant->whatsappSetting('session_id');
+
+        if ($sessionId !== '') {
+            return $sessionId;
+        }
+
+        return (string) $tenant->whatsappSetting('connection_id');
     }
 
     /**
-     * ID usado nos endpoints Cloud API (templates). Aceita connection_id ou session_id.
+     * ID usado nos endpoints Cloud API (templates). Preferência: connection_id.
      */
     public function connectionId(Tenant $tenant): string
     {

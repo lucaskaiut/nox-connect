@@ -2,11 +2,12 @@
 
 namespace App\Modules\Onboarding\Services;
 
+use App\Modules\Audit\Enums\AuditAction;
+use App\Modules\Audit\Services\AuditLogService;
 use App\Modules\Tenant\Models\Tenant;
 use App\Modules\Tenant\Services\TenantService;
 use App\Modules\WhatsApp\Contracts\WhatsAppConnectionProvider;
 use App\Modules\WhatsApp\DTOs\ConnectionInitializationDTO;
-use App\Modules\WhatsApp\DTOs\ConnectionResultDTO;
 use Illuminate\Validation\ValidationException;
 
 class OnboardingService
@@ -14,6 +15,7 @@ class OnboardingService
     public function __construct(
         private readonly TenantService $tenants,
         private readonly WhatsAppConnectionProvider $connectionProvider,
+        private readonly AuditLogService $audit,
     ) {}
 
     /**
@@ -41,7 +43,7 @@ class OnboardingService
             'whatsapp' => [
                 'connected' => $tenant->isWhatsappConnected(),
                 'phone_number' => $tenant->whatsappSetting('phone_number'),
-                'connection_id' => $tenant->whatsappSetting('connection_id'),
+                // SEC-03: não expor connection_id/session_id na API de status.
             ],
         ];
     }
@@ -96,6 +98,10 @@ class OnboardingService
             'current_step' => 'finish',
         ]);
 
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::WhatsAppConnected, $tenant);
+        }
+
         return [
             ...$this->status($tenant->fresh()),
             'connection_message' => $result->message,
@@ -124,6 +130,10 @@ class OnboardingService
             'current_step' => 'done',
             'completed_at' => now()->toIso8601String(),
         ]);
+
+        if ($user = request()->user()) {
+            $this->audit->record($user, AuditAction::OnboardingFinished, $tenant);
+        }
 
         return $this->status($tenant->fresh());
     }

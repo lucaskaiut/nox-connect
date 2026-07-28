@@ -8,7 +8,9 @@ use App\Modules\WhatsApp\DTOs\ConnectionInitializationDTO;
 use App\Modules\WhatsApp\DTOs\ConnectionResultDTO;
 use App\Modules\WhatsApp\DTOs\ConnectionStatusDTO;
 use App\Modules\WhatsApp\Enums\WhatsAppProviderKey;
+use App\Modules\WhatsApp\Services\WhatsAppConnectionOwnership;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -53,6 +55,7 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
         }
 
         $webhookUrl = $this->publicWebhookUrl($tenant);
+        $connectionNonce = WhatsAppConnectionOwnership::beginConnect($tenant);
 
         $configuration = $this->getConfiguration();
 
@@ -73,6 +76,7 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
             configuration: [
                 ...$configuration,
                 'webhook_url' => $webhookUrl,
+                'connection_nonce' => $connectionNonce,
             ],
             webhookUrl: $webhookUrl,
         );
@@ -83,6 +87,7 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
         $connectionId = (string) ($payload['connection_id'] ?? $payload['connectionId'] ?? '');
         $phoneNumber = $payload['phone_number'] ?? $payload['phoneNumber'] ?? null;
         $status = (string) ($payload['status'] ?? 'connected');
+        $nonce = isset($payload['connection_nonce']) ? (string) $payload['connection_nonce'] : null;
 
         Log::info('[WhatsApp:D-API] complete connection payload', [
             'tenant_id' => $tenant->id,
@@ -95,13 +100,44 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
         if ($connectionId === '') {
             Log::warning('[WhatsApp:D-API] complete sem connection_id', [
                 'tenant_id' => $tenant->id,
-                'payload' => $payload,
+                'payload_keys' => array_keys($payload),
             ]);
 
             return new ConnectionResultDTO(
                 settings: [],
                 connected: false,
                 message: 'connection_id é obrigatório para concluir a conexão D-API.',
+            );
+        }
+
+        // SEC-03: só aceita complete após initialize deste tenant + ID não claimado.
+        WhatsAppConnectionOwnership::assertConnectNonce($tenant, $nonce);
+        WhatsAppConnectionOwnership::assertExternalIdAvailable($tenant, $connectionId);
+
+        try {
+            $session = $this->client->getSession($connectionId);
+            $existingWebhook = (string) (
+                data_get($session, 'data.webhookUrl')
+                ?? data_get($session, 'data.webhook_url')
+                ?? data_get($session, 'webhookUrl')
+                ?? ''
+            );
+            WhatsAppConnectionOwnership::assertWebhookBelongsToTenant(
+                $tenant,
+                $existingWebhook !== '' ? $existingWebhook : null,
+            );
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::warning('[WhatsApp:D-API] getSession pré-complete falhou', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return new ConnectionResultDTO(
+                settings: [],
+                connected: false,
+                message: 'Não foi possível validar a sessão D-API antes de concluir.',
             );
         }
 
@@ -133,6 +169,8 @@ final class DApiConnectionProvider implements WhatsAppConnectionProvider
                 'app_url' => config('app.url'),
             ]);
         }
+
+        WhatsAppConnectionOwnership::clearConnectNonce($tenant);
 
         return new ConnectionResultDTO(
             settings: [

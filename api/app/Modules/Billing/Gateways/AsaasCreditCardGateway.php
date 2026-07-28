@@ -16,10 +16,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Gateway Asaas + cartão de crédito (chave: asaasCreditCard).
  *
- * Fluxos suportados via payment_data (metadata.payment_data):
- * - Sem dados de cartão → cobrança + invoiceUrl (checkout Asaas)
- * - Com credit_card + credit_card_holder_info (ou campos flat) → captura imediata
- * - Com credit_card_token → reutilização do token do cliente
+ * Fronteira PCI: a API não aceita PAN/CVV. Fluxos via payment_data:
+ * - Sem token → cobrança + invoiceUrl (checkout hospedado Asaas)
+ * - Com credit_card_token / creditCardToken → cobrança com token pré-gerado
  */
 class AsaasCreditCardGateway implements PaymentGatewayInterface
 {
@@ -136,20 +135,12 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
 
         if ($token !== null) {
             $payload['creditCardToken'] = $token;
-        } else {
-            $creditCard = $this->resolveCreditCard($paymentData);
-            $holderInfo = $this->resolveHolderInfo($paymentData);
-
-            if ($creditCard !== null && $holderInfo !== null) {
-                $payload['creditCard'] = $creditCard;
-                $payload['creditCardHolderInfo'] = $holderInfo;
-            } elseif ($creditCard !== null xor $holderInfo !== null) {
-                throw ValidationException::withMessages([
-                    'payment_data' => [
-                        'Para captura imediata envie credit_card e credit_card_holder_info completos, ou omita ambos para pagar na fatura Asaas.',
-                    ],
-                ]);
-            }
+        } elseif ($this->containsRawCardData($paymentData)) {
+            throw ValidationException::withMessages([
+                'payment_data' => [
+                    'Dados de cartão brutos (PAN/CVV) não são aceitos. Use credit_card_token ou conclua o pagamento na fatura Asaas.',
+                ],
+            ]);
         }
 
         $payload = array_filter(
@@ -207,128 +198,16 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
 
     /**
      * @param  array<string, mixed>  $paymentData
-     * @return array{holderName: string, number: string, expiryMonth: string, expiryYear: string, ccv: string}|null
      */
-    private function resolveCreditCard(array $paymentData): ?array
+    private function containsRawCardData(array $paymentData): bool
     {
-        /** @var array<string, mixed> $nested */
-        $nested = is_array($paymentData['credit_card'] ?? null)
-            ? $paymentData['credit_card']
-            : (is_array($paymentData['creditCard'] ?? null) ? $paymentData['creditCard'] : []);
-
-        $holderName = $this->stringFrom($nested, ['holderName', 'holder_name'])
-            ?? $this->stringFrom($paymentData, ['holder_name', 'holderName']);
-        $number = $this->digits(
-            $this->stringFrom($nested, ['number'])
-                ?? $this->stringFrom($paymentData, ['number']),
-        );
-        $expiryMonth = $this->stringFrom($nested, ['expiryMonth', 'expiry_month', 'exp_month'])
-            ?? $this->stringFrom($paymentData, ['exp_month', 'expiry_month', 'expiryMonth']);
-        $expiryYear = $this->normalizeExpiryYear(
-            $this->stringFrom($nested, ['expiryYear', 'expiry_year', 'exp_year'])
-                ?? $this->stringFrom($paymentData, ['exp_year', 'expiry_year', 'expiryYear']),
-        );
-        $ccv = $this->stringFrom($nested, ['ccv', 'cvv'])
-            ?? $this->stringFrom($paymentData, ['cvv', 'ccv']);
-
-        $fields = [$holderName, $number, $expiryMonth, $expiryYear, $ccv];
-
-        if (count(array_filter($fields, static fn (?string $v): bool => $v !== null && $v !== '')) === 0) {
-            return null;
-        }
-
-        if (in_array(null, $fields, true) || in_array('', $fields, true)) {
-            throw ValidationException::withMessages([
-                'payment_data.credit_card' => [
-                    'Dados do cartão incompletos. Informe holder_name, number, exp_month, exp_year e cvv.',
-                ],
-            ]);
-        }
-
-        return [
-            'holderName' => (string) $holderName,
-            'number' => (string) $number,
-            'expiryMonth' => str_pad((string) $expiryMonth, 2, '0', STR_PAD_LEFT),
-            'expiryYear' => (string) $expiryYear,
-            'ccv' => (string) $ccv,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $paymentData
-     * @return array{name: string, email: string, cpfCnpj: string, postalCode: string, addressNumber: string, phone: string, addressComplement?: string, mobilePhone?: string}|null
-     */
-    private function resolveHolderInfo(array $paymentData): ?array
-    {
-        /** @var array<string, mixed> $nested */
-        $nested = is_array($paymentData['credit_card_holder_info'] ?? null)
-            ? $paymentData['credit_card_holder_info']
-            : (is_array($paymentData['creditCardHolderInfo'] ?? null) ? $paymentData['creditCardHolderInfo'] : []);
-
-        $source = $nested !== [] ? $nested : $paymentData;
-
-        $nameKeys = $nested !== []
-            ? ['name', 'holder_name', 'holderName']
-            : ['name'];
-
-        $name = $this->stringFrom($source, $nameKeys);
-        $email = $this->stringFrom($source, ['email']);
-        $cpfCnpj = $this->digits(
-            $this->stringFrom($source, ['cpfCnpj', 'cpf_cnpj', 'document']),
-        );
-        $postalCode = $this->digits(
-            $this->stringFrom($source, ['postalCode', 'postal_code', 'zip_code', 'cep']),
-        );
-        $addressNumber = $this->stringFrom($source, ['addressNumber', 'address_number']);
-        $phone = $this->digits(
-            $this->stringFrom($source, ['phone', 'mobile_phone', 'mobilePhone']),
-        );
-
-        $required = [$name, $email, $cpfCnpj, $postalCode, $addressNumber, $phone];
-
-        if (count(array_filter($required, static fn (?string $v): bool => $v !== null && $v !== '')) === 0) {
-            // Sem bloco de titular: fluxo invoiceUrl (quando também não há cartão).
-            if ($nested === [] && ! $this->hasHolderKeys($paymentData)) {
-                return null;
-            }
-        }
-
-        if (in_array(null, $required, true) || in_array('', $required, true)) {
-            throw ValidationException::withMessages([
-                'payment_data.credit_card_holder_info' => [
-                    'Dados do titular incompletos. Informe name, email, cpf_cnpj (ou document), postal_code, address_number e phone.',
-                ],
-            ]);
-        }
-
-        $info = [
-            'name' => (string) $name,
-            'email' => (string) $email,
-            'cpfCnpj' => (string) $cpfCnpj,
-            'postalCode' => (string) $postalCode,
-            'addressNumber' => (string) $addressNumber,
-            'phone' => (string) $phone,
+        $blockedKeys = [
+            'number', 'cvv', 'ccv', 'pan', 'holder_name', 'holderName',
+            'exp_month', 'exp_year', 'credit_card', 'creditCard',
+            'credit_card_holder_info', 'creditCardHolderInfo',
         ];
 
-        $complement = $this->stringFrom($source, ['addressComplement', 'address_complement']);
-        if ($complement !== null) {
-            $info['addressComplement'] = $complement;
-        }
-
-        $mobile = $this->digits($this->stringFrom($source, ['mobilePhone', 'mobile_phone']));
-        if ($mobile !== '') {
-            $info['mobilePhone'] = $mobile;
-        }
-
-        return $info;
-    }
-
-    /**
-     * @param  array<string, mixed>  $paymentData
-     */
-    private function hasHolderKeys(array $paymentData): bool
-    {
-        foreach (['name', 'email', 'cpf_cnpj', 'cpfCnpj', 'document', 'postal_code', 'postalCode', 'cep', 'address_number', 'addressNumber', 'phone'] as $key) {
+        foreach ($blockedKeys as $key) {
             if (array_key_exists($key, $paymentData)) {
                 return true;
             }
@@ -400,21 +279,6 @@ class AsaasCreditCardGateway implements PaymentGatewayInterface
     private function digits(?string $value): string
     {
         return preg_replace('/\D+/', '', (string) $value) ?? '';
-    }
-
-    private function normalizeExpiryYear(?string $year): ?string
-    {
-        if ($year === null || $year === '') {
-            return null;
-        }
-
-        $digits = $this->digits($year);
-
-        if (strlen($digits) === 2) {
-            return '20'.$digits;
-        }
-
-        return $digits;
     }
 
     private function truncate(string $value, int $max): string

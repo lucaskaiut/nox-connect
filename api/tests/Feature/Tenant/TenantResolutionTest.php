@@ -74,27 +74,21 @@ class TenantResolutionTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_resolves_tenant_from_referer_header(): void
+    public function test_referer_header_does_not_resolve_tenant(): void
     {
-        $tenant = $this->createTenantWithRoles(['domain' => 'cliente1.com.br']);
+        $this->createTenantWithRoles(['domain' => 'cliente1.com.br']);
 
         $this->forgetTenantContext();
 
         $this->getJson('/api/testing/current-tenant', ['Referer' => 'https://cliente1.com.br/dashboard'])
-            ->assertOk()
-            ->assertJsonPath('tenant_uuid', $tenant->uuid);
-
-        $this->forgetTenantContext();
-
-        $this->getJson('/api/testing/current-tenant', ['Referer' => 'https://www.cliente1.com.br'])
-            ->assertOk()
-            ->assertJsonPath('tenant_uuid', $tenant->uuid);
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
     }
 
-    public function test_authenticated_user_takes_precedence_over_referer(): void
+    public function test_authenticated_user_is_not_overridden_by_referer(): void
     {
         $tenantA = $this->createTenantWithRoles();
-        $tenantB = $this->createTenantWithRoles(['domain' => 'cliente2.com.br']);
+        $this->createTenantWithRoles(['domain' => 'cliente2.com.br']);
 
         Sanctum::actingAs($this->createMember($tenantA));
 
@@ -103,7 +97,7 @@ class TenantResolutionTest extends TestCase
             ->assertJsonPath('tenant_uuid', $tenantA->uuid);
     }
 
-    public function test_unknown_referer_returns_404(): void
+    public function test_unknown_referer_still_returns_404_without_authentication(): void
     {
         $this->createTenantWithRoles(['domain' => 'cliente1.com.br']);
 

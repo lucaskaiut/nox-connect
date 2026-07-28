@@ -2,7 +2,9 @@
 
 namespace App\Modules\WhatsApp\Http\Requests;
 
+use App\Modules\Tenant\Support\Facades\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class MoveStageRequest extends FormRequest
 {
@@ -14,7 +16,13 @@ class MoveStageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'stage_id' => ['nullable', 'exists:whatsapp_kanban_stages,id'],
+            'stage_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('whatsapp_kanban_stages', 'id')
+                    ->where('tenant_id', TenantContext::tenantId())
+                    ->whereNull('deleted_at'),
+            ],
         ];
     }
 }

@@ -12,8 +12,8 @@ use App\Modules\WhatsApp\Models\WhatsAppConversation;
 use App\Modules\WhatsApp\Models\WhatsAppConversationAssignment;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use App\Modules\User\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 class ConversationService
@@ -22,7 +22,8 @@ class ConversationService
     {
         $query = WhatsAppConversation::query()
             ->with(['contact', 'lastMessage', 'currentAssignment.user', 'tags', 'currentStage'])
-            ->latest('last_message_at');
+            ->orderByDesc('last_message_at')
+            ->orderByDesc('id');
 
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
@@ -67,8 +68,17 @@ class ConversationService
     public function find(int $id): WhatsAppConversation
     {
         return WhatsAppConversation::query()
-            ->with(['contact', 'messages', 'notes.user', 'tags', 'currentAssignment.user', 'currentStage'])
+            ->with(['contact', 'notes.user', 'tags', 'currentAssignment.user', 'currentStage'])
+            ->withCount('messages')
             ->findOrFail($id);
+    }
+
+    public function listMessages(WhatsAppConversation $conversation, int $perPage = 50): CursorPaginator
+    {
+        return WhatsAppMessage::query()
+            ->where('conversation_id', $conversation->id)
+            ->orderByDesc('id')
+            ->cursorPaginate($perPage);
     }
 
     public function markAsRead(WhatsAppConversation $conversation): void
@@ -78,7 +88,13 @@ class ConversationService
 
     public function assign(WhatsAppConversation $conversation, string $userId): void
     {
-        DB::transaction(function () use ($conversation, $userId): void {
+        $user = User::query()->where('uuid', $userId)->first();
+
+        if ($user === null) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$userId]);
+        }
+
+        DB::transaction(function () use ($conversation, $user): void {
             WhatsAppConversationAssignment::query()
                 ->where('conversation_id', $conversation->id)
                 ->whereNull('unassigned_at')
@@ -86,12 +102,10 @@ class ConversationService
 
             WhatsAppConversationAssignment::query()->create([
                 'conversation_id' => $conversation->id,
-                'user_id' => $userId,
+                'user_id' => $user->uuid,
                 'assigned_at' => now(),
             ]);
         });
-
-        $user = User::query()->where('uuid', $userId)->first();
 
         broadcast(new ConversationAssigned(
             $conversation->tenantUuid(),

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Billing\Http\Requests;
 
+use App\Modules\Billing\Support\PaymentDataRules;
 use App\Modules\Billing\Support\PaymentGatewayResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,7 +25,7 @@ class InitiateInvoicePaymentRequest extends FormRequest
                 'string',
                 Rule::in(app(PaymentGatewayResolver::class)->activeKeys()),
             ],
-            'payment_data' => ['nullable', 'array'],
+            ...PaymentDataRules::validationRules(),
         ];
     }
 }

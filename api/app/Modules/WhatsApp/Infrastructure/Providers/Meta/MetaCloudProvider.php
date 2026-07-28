@@ -21,6 +21,7 @@ use App\Modules\WhatsApp\DTOs\TemplateDTO;
 use App\Modules\WhatsApp\DTOs\TemplateListResultDTO;
 use App\Modules\WhatsApp\DTOs\UpdateTemplateDTO;
 use App\Modules\WhatsApp\Enums\WhatsAppProviderKey;
+use App\Modules\WhatsApp\Services\WhatsAppConnectionOwnership;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -47,6 +48,11 @@ final class MetaCloudProvider implements WhatsAppProvider, WhatsAppTemplateCatal
         if (blank(config('whatsapp.credentials.access_token'))) {
             throw new InvalidArgumentException('Credencial global WHATSAPP_ACCESS_TOKEN não configurada.');
         }
+
+        // SEC-04 (mitigação local): bloquear canal já vinculado a outro tenant.
+        // Modelo atual = BSP com token global; self-service ainda alcança canais do token
+        // até haver Embedded Signup / provisioning operator-only (AP-03).
+        WhatsAppConnectionOwnership::assertExternalIdAvailable($tenant, $channelId, 'channel_id');
 
         try {
             $ok = $this->client->verifyChannel($channelId);

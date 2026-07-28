@@ -74,6 +74,27 @@ class UserCrudTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'novo@empresa.com',
             'tenant_id' => $tenant->getKey(),
+            'is_master' => false,
+        ]);
+    }
+
+    public function test_store_on_umbrella_tenant_does_not_create_master_user(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+
+        Sanctum::actingAs($this->createAdmin($tenant));
+
+        $this->postJson('/api/users', [
+            'name' => 'Usuário Comum',
+            'email' => 'comum@empresa.com',
+            'password' => '12345678',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'comum@empresa.com');
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'comum@empresa.com',
+            'is_master' => false,
         ]);
     }
 
@@ -160,5 +181,42 @@ class UserCrudTest extends TestCase
         $this->postJson('/api/users', [])->assertForbidden();
         $this->putJson("/api/users/{$target->uuid}", ['name' => 'X'])->assertForbidden();
         $this->deleteJson("/api/users/{$target->uuid}")->assertForbidden();
+    }
+
+    public function test_store_cannot_elevate_privileges_via_is_master_mass_assignment(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+
+        Sanctum::actingAs($this->createAdmin($tenant));
+
+        $this->postJson('/api/users', [
+            'name' => 'Atacante',
+            'email' => 'atacante@empresa.com',
+            'password' => '12345678',
+            'is_master' => true,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'atacante@empresa.com',
+            'is_master' => false,
+        ]);
+    }
+
+    public function test_update_cannot_elevate_privileges_via_is_master_mass_assignment(): void
+    {
+        $tenant = $this->createTenantWithRoles();
+        $user = User::factory()->for($tenant)->create();
+
+        Sanctum::actingAs($this->createAdmin($tenant));
+
+        $this->putJson("/api/users/{$user->uuid}", [
+            'name' => 'Atacante',
+            'is_master' => true,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->getKey(),
+            'is_master' => false,
+        ]);
     }
 }

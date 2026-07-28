@@ -12,7 +12,7 @@ const permissionValues = Object.values(Permission) as [Permission, ...Permission
 export const apiTokenSchema = z.object({
   name: z.string().min(1, 'Informe um nome para identificar o token'),
   expiration: z.enum(['never', '30', '90']),
-  permissions: z.array(z.enum(permissionValues)),
+  permissions: z.array(z.enum(permissionValues)).min(1, 'Selecione ao menos uma permissão'),
 })
 
 export type ApiTokenFormValues = z.infer<typeof apiTokenSchema>

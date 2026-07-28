@@ -42,7 +42,7 @@ export default function ApiTokenCreatePage() {
       const issued = await createToken.mutateAsync({
         name: values.name,
         expires_at: resolveExpiresAt(values.expiration),
-        permissions: values.permissions.length > 0 ? values.permissions : null,
+        permissions: values.permissions,
       })
 
       setIssuedToken(issued.token)
@@ -91,7 +91,7 @@ export default function ApiTokenCreatePage() {
 
               <Section
                 title="Permissões (escopos)"
-                description="Se nenhuma permissão for selecionada, o token terá acesso irrestrito."
+                description="Selecione ao menos uma permissão. Tokens sem escopo não têm acesso à API."
               >
                 <PermissionsField name="permissions" />
               </Section>

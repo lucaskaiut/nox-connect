@@ -50,6 +50,7 @@ export function useFinishOnboarding() {
     mutationFn: () => onboardingService.finish(),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session })
       const session = await queryClient.fetchQuery(sessionQueryOptions)
       setSession(session)
       toast.success('Bem-vindo!', 'Você já pode usar a aplicação.')

@@ -44,6 +44,7 @@ export const queryKeys = {
       all: ['whatsapp', 'conversations'] as const,
       list: (params: Record<string, unknown>) => ['whatsapp', 'conversations', 'list', params] as const,
       detail: (id: number) => ['whatsapp', 'conversations', 'detail', id] as const,
+      messages: (id: number) => ['whatsapp', 'conversations', 'messages', id] as const,
       stats: () => ['whatsapp', 'conversations', 'stats'] as const,
     },
     tags: {
@@ -54,6 +55,8 @@ export const queryKeys = {
       all: ['whatsapp', 'kanban'] as const,
       board: () => ['whatsapp', 'kanban', 'board'] as const,
       stages: () => ['whatsapp', 'kanban', 'stages'] as const,
+      stageConversations: (stageId: number) =>
+        ['whatsapp', 'kanban', 'stages', stageId, 'conversations'] as const,
     },
     templates: {
       all: ['whatsapp', 'templates'] as const,

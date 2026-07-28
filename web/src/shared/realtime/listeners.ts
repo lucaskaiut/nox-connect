@@ -1,10 +1,11 @@
-import type { QueryClient } from '@tanstack/react-query'
+import type { InfiniteData, QueryClient } from '@tanstack/react-query'
 import type {
   WhatsAppConversation,
   WhatsAppMessage,
   WhatsAppNote,
   WhatsAppTag,
 } from '@/shared/types/models'
+import type { CursorPaginatedResponse } from '@/shared/types/api'
 import { queryKeys } from '@/shared/constants/query-keys'
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,8 @@ interface InternalNoteCreatedPayload {
   note: WhatsAppNote
 }
 
+type MessagesInfiniteData = InfiniteData<CursorPaginatedResponse<WhatsAppMessage>, string | null>
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -64,18 +67,117 @@ function updateConversationInCache(
   })
 }
 
+function prependMessage(
+  queryClient: QueryClient,
+  conversationId: number,
+  message: WhatsAppMessage,
+) {
+  const messagesKey = queryKeys.whatsapp.conversations.messages(conversationId)
+
+  queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) => {
+    if (!old || old.pages.length === 0) {
+      return {
+        pages: [
+          {
+            success: true,
+            message: null,
+            data: [message],
+            meta: {
+              path: '',
+              per_page: 50,
+              next_cursor: null,
+              prev_cursor: null,
+              next_page_url: null,
+              prev_page_url: null,
+            },
+          },
+        ],
+        pageParams: [null],
+      }
+    }
+
+    const [firstPage, ...rest] = old.pages
+    if (firstPage.data.some((item) => item.id === message.id)) {
+      return {
+        ...old,
+        pages: [
+          {
+            ...firstPage,
+            data: firstPage.data.map((item) => (item.id === message.id ? message : item)),
+          },
+          ...rest,
+        ],
+      }
+    }
+
+    const pendingIndex = firstPage.data.findIndex(
+      (msg) =>
+        msg.id < 0 &&
+        msg.status === 'pending' &&
+        msg.direction === 'outbound' &&
+        msg.content === message.content,
+    )
+
+    if (pendingIndex >= 0) {
+      return {
+        ...old,
+        pages: [
+          {
+            ...firstPage,
+            data: firstPage.data.map((msg, index) => (index === pendingIndex ? message : msg)),
+          },
+          ...rest,
+        ],
+      }
+    }
+
+    return {
+      ...old,
+      pages: [{ ...firstPage, data: [message, ...firstPage.data] }, ...rest],
+    }
+  })
+}
+
+function patchMessageByExternalId(
+  queryClient: QueryClient,
+  conversationId: number,
+  externalMessageId: string,
+  patch: Partial<WhatsAppMessage>,
+) {
+  const messagesKey = queryKeys.whatsapp.conversations.messages(conversationId)
+
+  queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) => {
+    if (!old) return old
+
+    return {
+      ...old,
+      pages: old.pages.map((page) => ({
+        ...page,
+        data: page.data.map((msg) =>
+          msg.external_message_id === externalMessageId ? { ...msg, ...patch } : msg,
+        ),
+      })),
+    }
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Event handlers
 // ---------------------------------------------------------------------------
 
 export function handleMessageReceived(queryClient: QueryClient, payload: MessageReceivedPayload) {
   const { conversation_id: conversationId, message } = payload
+  const windowExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+  prependMessage(queryClient, conversationId, message)
 
   updateConversationInCache(queryClient, conversationId, (old) => ({
     ...old,
-    messages: old.messages ? [...old.messages, message] : old.messages,
     last_message_preview: message.content,
     last_message_at: message.created_at,
+    last_customer_message_at: message.created_at,
+    window_expires_at: windowExpiresAt,
+    is_window_open: true,
     is_unread: true,
   }))
 
@@ -86,45 +188,32 @@ export function handleMessageReceived(queryClient: QueryClient, payload: Message
 export function handleMessageSent(queryClient: QueryClient, payload: MessageSentPayload) {
   const { conversation_id: conversationId, message } = payload
 
+  prependMessage(queryClient, conversationId, message)
+
   updateConversationInCache(queryClient, conversationId, (old) => ({
     ...old,
-    messages: old.messages ? [...old.messages, message] : old.messages,
     last_message_preview: message.content,
     last_message_at: message.created_at,
   }))
 }
 
 export function handleMessageDelivered(queryClient: QueryClient, payload: MessageStatusPayload) {
-  const { conversation_id: conversationId, external_message_id: externalMessageId, status, delivered_at } = payload
+  const { conversation_id: conversationId, external_message_id: externalMessageId, status, delivered_at } =
+    payload
 
-  updateConversationInCache(queryClient, conversationId, (old) => {
-    if (!old.messages) return old
-
-    return {
-      ...old,
-      messages: old.messages.map((msg) =>
-        msg.external_message_id === externalMessageId
-          ? { ...msg, status, delivered_at: delivered_at ?? msg.delivered_at }
-          : msg,
-      ),
-    }
+  patchMessageByExternalId(queryClient, conversationId, externalMessageId, {
+    status,
+    delivered_at: delivered_at ?? undefined,
   })
 }
 
 export function handleMessageRead(queryClient: QueryClient, payload: MessageStatusPayload) {
-  const { conversation_id: conversationId, external_message_id: externalMessageId, status, read_at } = payload
+  const { conversation_id: conversationId, external_message_id: externalMessageId, status, read_at } =
+    payload
 
-  updateConversationInCache(queryClient, conversationId, (old) => {
-    if (!old.messages) return old
-
-    return {
-      ...old,
-      messages: old.messages.map((msg) =>
-        msg.external_message_id === externalMessageId
-          ? { ...msg, status, read_at: read_at ?? msg.read_at }
-          : msg,
-      ),
-    }
+  patchMessageByExternalId(queryClient, conversationId, externalMessageId, {
+    status,
+    read_at: read_at ?? undefined,
   })
 }
 

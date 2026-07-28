@@ -32,6 +32,7 @@ class Webhook extends Model
             'query_params' => 'array',
             'body_template' => 'array',
             'is_active' => 'boolean',
+            'secret' => 'encrypted',
         ];
     }
 

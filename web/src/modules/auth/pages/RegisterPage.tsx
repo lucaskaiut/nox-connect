@@ -10,6 +10,7 @@ import { useRegisterCheckoutStore } from '../store/register-checkout.store'
 
 export default function RegisterPage() {
   const step = useRegisterCheckoutStore((state) => state.step)
+  const reset = useRegisterCheckoutStore((state) => state.reset)
 
   return (
     <div className="w-full max-w-5xl">
@@ -30,7 +31,11 @@ export default function RegisterPage() {
 
           <p className="mt-8 text-center text-sm text-muted">
             Já tem uma conta?{' '}
-            <Link to="/auth/login" className="font-medium text-primary hover:text-primary-hover">
+            <Link
+              to="/auth/login"
+              className="font-medium text-primary hover:text-primary-hover"
+              onClick={() => reset()}
+            >
               Entrar
             </Link>
           </p>

@@ -7,6 +7,7 @@ use App\Modules\WhatsApp\Http\Requests\AssignConversationRequest;
 use App\Modules\WhatsApp\Http\Requests\SendMessageRequest;
 use App\Modules\WhatsApp\Http\Requests\SendTemplateRequest;
 use App\Modules\WhatsApp\Http\Requests\StoreNoteRequest;
+use App\Modules\WhatsApp\Http\Requests\SyncTagsRequest;
 use App\Modules\WhatsApp\Http\Resources\ConversationResource;
 use App\Modules\WhatsApp\Http\Resources\MessageResource;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
@@ -49,6 +50,17 @@ class ConversationController extends ApiController
         $this->service->markAsRead($conversation);
 
         return $this->success(ConversationResource::make($this->service->find($conversation->id)));
+    }
+
+    public function messages(Request $request, WhatsAppConversation $conversation): JsonResponse
+    {
+        $this->authorize('view', $conversation);
+
+        $perPage = min(100, max(1, (int) $request->integer('per_page', 50)));
+
+        return $this->paginated(
+            MessageResource::collection($this->service->listMessages($conversation, $perPage))
+        );
     }
 
     public function sendMessage(SendMessageRequest $request, WhatsAppConversation $conversation): JsonResponse
@@ -144,11 +156,11 @@ class ConversationController extends ApiController
         return $this->success($conversation->tags);
     }
 
-    public function syncTags(Request $request, WhatsAppConversation $conversation): JsonResponse
+    public function syncTags(SyncTagsRequest $request, WhatsAppConversation $conversation): JsonResponse
     {
         $this->authorize('update', $conversation);
 
-        $conversation->tags()->sync($request->input('tag_ids', []));
+        $conversation->tags()->sync($request->validated('tag_ids'));
 
         return $this->success($conversation->tags()->get(), 'Tags atualizadas.');
     }

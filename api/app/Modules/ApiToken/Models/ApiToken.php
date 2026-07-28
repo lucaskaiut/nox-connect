@@ -38,23 +38,13 @@ class ApiToken extends Model
     }
 
     /**
-     * Retorna os escopos do token. Se null, acesso irrestrito (full access).
-     *
-     * @return list<string>|null
-     */
-    public function scopes(): ?array
-    {
-        return $this->permissions;
-    }
-
-    /**
      * Verifica se o token possui uma permissão específica.
-     * Permissões nulas (null) representam acesso total.
+     * Default deny: null ou array vazio não concede acesso.
      */
     public function can(string $permission): bool
     {
-        if ($this->permissions === null) {
-            return true;
+        if ($this->permissions === null || $this->permissions === []) {
+            return false;
         }
 
         return in_array($permission, $this->permissions, true);

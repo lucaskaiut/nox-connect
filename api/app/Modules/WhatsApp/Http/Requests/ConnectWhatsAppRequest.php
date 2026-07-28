@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Http\Requests;
 
+use App\Modules\ACL\Enums\Permission;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -12,7 +13,7 @@ class ConnectWhatsAppRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->hasPermission(Permission::WHATSAPP_CONFIG_CREATE) ?? false;
     }
 
     public function rules(): array

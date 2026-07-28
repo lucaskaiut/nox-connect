@@ -2,6 +2,8 @@
 
 namespace App\Modules\User\Http\Controllers;
 
+use App\Modules\Audit\Enums\AuditAction;
+use App\Modules\Audit\Services\AuditLogService;
 use App\Modules\Shared\Http\Controllers\ApiController;
 use App\Modules\User\Http\Requests\StoreUserRequest;
 use App\Modules\User\Http\Requests\UpdateUserRequest;
@@ -13,7 +15,10 @@ use Illuminate\Http\Request;
 
 class UserController extends ApiController
 {
-    public function __construct(private readonly UserService $service) {}
+    public function __construct(
+        private readonly UserService $service,
+        private readonly AuditLogService $audit,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -40,6 +45,10 @@ class UserController extends ApiController
 
         $user = $this->service->create($request->validated());
 
+        if ($actor = request()->user()) {
+            $this->audit->record($actor, AuditAction::UserCreated);
+        }
+
         return $this->created(UserResource::make($user), 'Usuário criado com sucesso.');
     }
 
@@ -57,6 +66,10 @@ class UserController extends ApiController
         $this->authorize('delete', $user);
 
         $this->service->delete($user);
+
+        if ($actor = request()->user()) {
+            $this->audit->record($actor, AuditAction::UserDeleted);
+        }
 
         return $this->success(null, 'Usuário removido com sucesso.');
     }

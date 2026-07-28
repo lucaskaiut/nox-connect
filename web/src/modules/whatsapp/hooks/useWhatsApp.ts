@@ -1,8 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { InfiniteData } from '@tanstack/react-query'
 import { queryKeys } from '@/shared/constants/query-keys'
+import { isApiError } from '@/shared/api/errors'
 import { toast } from '@/shared/stores/toast.store'
 import { sessionQueryOptions } from '@/modules/auth/services/auth.service'
 import { useSessionStore } from '@/shared/stores/session.store'
+import type { CursorPaginatedResponse } from '@/shared/types/api'
+import type { WhatsAppConversation, WhatsAppMessage } from '@/shared/types/models'
 import {
   whatsappService,
   type ConversationFilters,
@@ -11,6 +15,84 @@ import {
   type UpdateTemplatePayload,
   type WhatsAppConnectPayload,
 } from '../services/whatsapp.service'
+
+type MessagesInfiniteData = InfiniteData<CursorPaginatedResponse<WhatsAppMessage>, string | null>
+
+function prependMessageToCache(
+  data: MessagesInfiniteData | undefined,
+  message: WhatsAppMessage,
+): MessagesInfiniteData | undefined {
+  if (!data || data.pages.length === 0) {
+    return {
+      pages: [
+        {
+          success: true,
+          message: null,
+          data: [message],
+          meta: {
+            path: '',
+            per_page: 50,
+            next_cursor: null,
+            prev_cursor: null,
+            next_page_url: null,
+            prev_page_url: null,
+          },
+        },
+      ],
+      pageParams: [null],
+    }
+  }
+
+  const [firstPage, ...rest] = data.pages
+  const exists = firstPage.data.some((item) => item.id === message.id)
+  if (exists) {
+    return {
+      ...data,
+      pages: [
+        {
+          ...firstPage,
+          data: firstPage.data.map((item) => (item.id === message.id ? message : item)),
+        },
+        ...rest,
+      ],
+    }
+  }
+
+  return {
+    ...data,
+    pages: [{ ...firstPage, data: [message, ...firstPage.data] }, ...rest],
+  }
+}
+
+function replaceMessageInCache(
+  data: MessagesInfiniteData | undefined,
+  optimisticId: number,
+  next: WhatsAppMessage,
+): MessagesInfiniteData | undefined {
+  if (!data) return data
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => {
+      const hasOptimistic = page.data.some((message) => message.id === optimisticId)
+      if (hasOptimistic) {
+        return {
+          ...page,
+          data: page.data.map((message) => (message.id === optimisticId ? next : message)),
+        }
+      }
+
+      if (page.data.some((message) => message.id === next.id)) {
+        return {
+          ...page,
+          data: page.data.map((message) => (message.id === next.id ? next : message)),
+        }
+      }
+
+      return page
+    }),
+  }
+}
 
 export function useWhatsAppConnectionQuery() {
   return useQuery({
@@ -27,6 +109,7 @@ export function useWebhookLogsQuery() {
 }
 
 async function refreshSession(queryClient: ReturnType<typeof useQueryClient>) {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.session })
   const session = await queryClient.fetchQuery(sessionQueryOptions)
   useSessionStore.getState().setSession(session)
 }
@@ -86,15 +169,168 @@ export function useConversationQuery(id: number) {
   })
 }
 
+export function useMessagesQuery(conversationId: number, perPage = 50) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.whatsapp.conversations.messages(conversationId),
+    queryFn: ({ pageParam }) =>
+      whatsappService.listMessages(conversationId, {
+        cursor: pageParam ?? null,
+        per_page: perPage,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.meta.next_cursor,
+    enabled: conversationId > 0,
+  })
+}
+
+export type SendMessageVariables = {
+  id: number
+  content: string
+  /** Reuses the same bubble when retrying a failed send */
+  optimisticId?: number
+}
+
+let optimisticSeq = 0
+
+function isWhatsAppMessage(value: unknown): value is WhatsAppMessage {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof (value as WhatsAppMessage).id === 'number' &&
+    'conversation_id' in value &&
+    'direction' in value &&
+    'status' in value
+  )
+}
+
 export function useSendMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, content }: { id: number; content: string }) =>
+    mutationFn: ({ id, content }: SendMessageVariables) =>
       whatsappService.sendMessage(id, content),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.detail(variables.id) })
+
+    onMutate: async ({ id, content, optimisticId }) => {
+      const messagesKey = queryKeys.whatsapp.conversations.messages(id)
+      const detailKey = queryKeys.whatsapp.conversations.detail(id)
+      await queryClient.cancelQueries({ queryKey: messagesKey })
+
+      const previousMessages = queryClient.getQueryData<MessagesInfiniteData>(messagesKey)
+      const previousDetail = queryClient.getQueryData<WhatsAppConversation>(detailKey)
+      const tempId = optimisticId ?? -(Date.now() * 1000 + (optimisticSeq++ % 1000))
+      const senderName = useSessionStore.getState().user?.name ?? null
+      const createdAt = new Date().toISOString()
+
+      if (optimisticId != null) {
+        queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) =>
+          replaceMessageInCache(old, optimisticId, {
+            ...(old?.pages.flatMap((page) => page.data).find((m) => m.id === optimisticId) ?? {
+              id: optimisticId,
+              conversation_id: id,
+              direction: 'outbound',
+              message_type: 'text',
+              content,
+              media: null,
+              external_message_id: null,
+              status: 'pending',
+              metadata: null,
+              sender_name: senderName,
+              delivered_at: null,
+              read_at: null,
+              created_at: createdAt,
+            }),
+            status: 'pending',
+            content,
+          }),
+        )
+      } else {
+        const optimisticMessage: WhatsAppMessage = {
+          id: tempId,
+          conversation_id: id,
+          direction: 'outbound',
+          message_type: 'text',
+          content,
+          media: null,
+          external_message_id: null,
+          status: 'pending',
+          metadata: null,
+          sender_name: senderName,
+          delivered_at: null,
+          read_at: null,
+          created_at: createdAt,
+        }
+
+        queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) =>
+          prependMessageToCache(old, optimisticMessage),
+        )
+      }
+
+      queryClient.setQueryData<WhatsAppConversation>(detailKey, (old) =>
+        old
+          ? {
+              ...old,
+              last_message_preview: content,
+              last_message_at: createdAt,
+            }
+          : old,
+      )
+
+      return { previousMessages, previousDetail, tempId, conversationId: id }
+    },
+
+    onSuccess: (data, _variables, context) => {
+      if (!context) return
+
+      const messagesKey = queryKeys.whatsapp.conversations.messages(context.conversationId)
+      const detailKey = queryKeys.whatsapp.conversations.detail(context.conversationId)
+
+      queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) =>
+        replaceMessageInCache(old, context.tempId, data),
+      )
+
+      queryClient.setQueryData<WhatsAppConversation>(detailKey, (old) =>
+        old
+          ? {
+              ...old,
+              last_message_preview: data.content,
+              last_message_at: data.created_at,
+            }
+          : old,
+      )
+
       queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.all })
+    },
+
+    onError: (error, _variables, context) => {
+      if (!context) return
+
+      const messagesKey = queryKeys.whatsapp.conversations.messages(context.conversationId)
+      const serverMessage = isApiError(error) && isWhatsAppMessage(error.data) ? error.data : null
+
+      if (serverMessage) {
+        queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) =>
+          replaceMessageInCache(old, context.tempId, {
+            ...serverMessage,
+            status: serverMessage.status || 'failed',
+          }),
+        )
+        queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations.all })
+        return
+      }
+
+      queryClient.setQueryData<MessagesInfiniteData>(messagesKey, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((message) =>
+              message.id === context.tempId ? { ...message, status: 'failed' } : message,
+            ),
+          })),
+        }
+      })
     },
   })
 }
@@ -248,6 +484,20 @@ export function useKanbanBoardQuery() {
   return useQuery({
     queryKey: queryKeys.whatsapp.kanban.board(),
     queryFn: whatsappService.getKanbanBoard,
+  })
+}
+
+export function useKanbanStageConversationsQuery(stageId: number, perPage = 20) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.whatsapp.kanban.stageConversations(stageId),
+    queryFn: ({ pageParam }) =>
+      whatsappService.listKanbanStageConversations(stageId, {
+        cursor: pageParam ?? null,
+        per_page: perPage,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.meta.next_cursor,
+    enabled: stageId > 0,
   })
 }
 

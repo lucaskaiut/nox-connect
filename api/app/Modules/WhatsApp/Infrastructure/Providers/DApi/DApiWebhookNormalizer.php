@@ -73,7 +73,11 @@ final class DApiWebhookNormalizer implements WebhookNormalizer
                     $ts = Arr::get($data, 'timestamp');
 
                     if (is_numeric($ts)) {
-                        $receivedAt = Carbon::createFromTimestampMs((int) $ts);
+                        $ts = (int) $ts;
+                        // D-API/WhatsApp enviam Unix em segundos (~1e9). ms seria ~1e12.
+                        $receivedAt = $ts > 1_000_000_000_000
+                            ? Carbon::createFromTimestampMs($ts)
+                            : Carbon::createFromTimestamp($ts);
                     }
 
                     $messages[] = new IncomingMessageDTO(

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Webhook\Http\Requests;
 
+use App\Modules\Shared\Rules\SafeOutboundUrl;
 use App\Modules\Webhook\Services\WebhookEventRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,7 @@ class UpdateWebhookRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'url' => ['sometimes', 'url', 'max:2048'],
+            'url' => ['sometimes', 'url', 'max:2048', new SafeOutboundUrl],
             'method' => ['sometimes', 'string', Rule::in(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])],
             'event' => ['sometimes', 'string', 'max:255', Rule::in($registry->eventNames())],
             'headers' => ['nullable', 'array'],

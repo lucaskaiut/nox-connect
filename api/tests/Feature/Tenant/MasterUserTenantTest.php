@@ -173,9 +173,8 @@ class MasterUserTenantTest extends TestCase
 
     public function test_master_can_switch_tenant_and_audit_is_recorded(): void
     {
-        $umbrella = $this->createTenantWithRoles();
-        $childA = $this->createChildTenant($umbrella, ['name' => 'Empresa A']);
-        $childB = $this->createChildTenant($umbrella, ['name' => 'Empresa B']);
+        [$umbrella, $childA] = $this->createOperationalChild(childAttributes: ['name' => 'Empresa A']);
+        [, $childB] = $this->createOperationalChild($umbrella, ['name' => 'Empresa B']);
         $master = $this->createMaster($umbrella, ['email' => 'master@grupo.com']);
 
         $token = $this->postJson('/api/auth/login', [
@@ -207,24 +206,18 @@ class MasterUserTenantTest extends TestCase
 
     public function test_master_operates_on_selected_child_data_isolation(): void
     {
-        $umbrella = $this->createTenantWithRoles();
-        $childA = $this->createChildTenant($umbrella);
-        $childB = $this->createChildTenant($umbrella);
+        [$umbrella, $childA] = $this->createOperationalChild();
+        [, $childB] = $this->createOperationalChild($umbrella);
 
         $userA = $this->createMember($childA, ['email' => 'a@empresa.com', 'name' => 'User A']);
         $this->createMember($childB, ['email' => 'b@empresa.com', 'name' => 'User B']);
 
         $master = $this->createMaster($umbrella, ['email' => 'master@grupo.com']);
 
-        $token = $this->postJson('/api/auth/login', [
-            'email' => 'master@grupo.com',
-            'password' => 'password',
-        ])->json('data.token');
-
+        Sanctum::actingAs($master);
         $this->forgetTenantContext();
 
         $response = $this->getJson('/api/users', [
-            'Authorization' => "Bearer {$token}",
             AuthenticatedUserStrategy::HEADER => $childA->uuid,
         ]);
 

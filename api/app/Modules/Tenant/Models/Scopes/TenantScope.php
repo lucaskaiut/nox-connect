@@ -14,13 +14,19 @@ class TenantScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
+        // Fail-closed: sem contexto de tenant resolvido (ou falha no resolver),
+        // nenhum registro de outro tenant deve vazar — retorna conjunto vazio.
         if (! TenantContext::isResolved()) {
+            $builder->whereRaw('0 = 1');
+
             return;
         }
 
         try {
             $tenantId = app(TenantResolverInterface::class)->currentTenantId();
         } catch (TenantCouldNotBeResolved) {
+            $builder->whereRaw('0 = 1');
+
             return;
         }
 

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
+  AlertCircle,
   Check,
   CheckCheck,
   Clock,
@@ -9,6 +10,7 @@ import {
   Video,
   Music,
   Plus,
+  RotateCcw,
 } from 'lucide-react'
 import {
   Button,
@@ -34,6 +36,8 @@ export function MessageStatus({ status }: { status: string }) {
   const base = 'inline-flex items-center shrink-0 ml-1'
 
   switch (status) {
+    case 'pending':
+      return <span className={base} title="Enviando..."><Clock className="size-3 animate-pulse opacity-70" /></span>
     case 'received':
       return <span className={base} title="Recebida"><Clock className="size-3 text-muted" /></span>
     case 'sent':
@@ -42,6 +46,8 @@ export function MessageStatus({ status }: { status: string }) {
       return <span className={base} title="Entregue"><CheckCheck className="size-3.5 text-muted" /></span>
     case 'read':
       return <span className={base} title="Lida"><CheckCheck className="size-3.5 text-blue-500" /></span>
+    case 'failed':
+      return <span className={base} title="Falha no envio"><AlertCircle className="size-3.5 text-danger" /></span>
     default:
       return null
   }
@@ -62,14 +68,29 @@ export function MediaPlaceholder({ type }: { type: string }) {
   }
 }
 
-export function MessageBubble({ message, isOutbound }: { message: WhatsAppMessage; isOutbound: boolean }) {
+export function MessageBubble({
+  message,
+  isOutbound,
+  onRetry,
+}: {
+  message: WhatsAppMessage
+  isOutbound: boolean
+  onRetry?: (message: WhatsAppMessage) => void
+}) {
+  const isFailed = isOutbound && message.status === 'failed'
+  const isPending = isOutbound && message.status === 'pending'
+
   return (
-    <div className={cn('flex', isOutbound ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex flex-col gap-1', isOutbound ? 'items-end' : 'items-start')}>
       <div
         className={cn(
           'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm',
           isOutbound
-            ? 'rounded-br-md bg-primary text-primary-foreground'
+            ? cn(
+                'rounded-br-md bg-primary text-primary-foreground',
+                isPending && 'opacity-80',
+                isFailed && 'ring-1 ring-danger/40',
+              )
             : 'rounded-bl-md bg-surface-2 text-foreground',
         )}
       >
@@ -93,6 +114,20 @@ export function MessageBubble({ message, isOutbound }: { message: WhatsAppMessag
           {isOutbound && <MessageStatus status={message.status} />}
         </div>
       </div>
+      {isFailed && (
+        <button
+          type="button"
+          onClick={() => onRetry?.(message)}
+          className="inline-flex items-center gap-1 px-1 text-[11px] font-medium text-danger transition-opacity hover:opacity-80"
+        >
+          <AlertCircle className="size-3" />
+          Falha no envio
+          <span className="inline-flex items-center gap-0.5 underline underline-offset-2">
+            <RotateCcw className="size-3" />
+            Tentar novamente
+          </span>
+        </button>
+      )}
     </div>
   )
 }

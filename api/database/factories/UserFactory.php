@@ -34,14 +34,13 @@ class UserFactory extends Factory
             'phone' => fake()->numerify('419########'),
             'document' => Document::fakeCpf(),
             'password' => static::$password ??= Hash::make('password'),
-            'is_master' => false,
         ];
     }
 
     public function master(): static
     {
-        return $this->state(fn (): array => [
-            'is_master' => true,
-        ]);
+        return $this->afterCreating(function (User $user): void {
+            $user->forceFill(['is_master' => true])->save();
+        });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Webhook\Jobs;
 
+use App\Modules\Shared\Support\UrlSecurityValidator;
 use App\Modules\Webhook\Models\Webhook;
 use App\Modules\Webhook\Models\WebhookLog;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,20 +17,33 @@ class SendWebhook implements ShouldQueue
 {
     use Queueable;
 
+    private const TIMEOUT_SECONDS = 10;
+
+    private const CONNECT_TIMEOUT_SECONDS = 5;
+
     public function __construct(
         private readonly Webhook $webhook,
         private readonly array $data,
     ) {}
 
-    public function handle(): void
+    public function handle(UrlSecurityValidator $urlValidator): void
     {
         $method = strtoupper($this->webhook->method);
         $url = $this->webhook->url;
+
+        try {
+            $urlValidator->assertSafe($url);
+        } catch (\InvalidArgumentException $e) {
+            $this->logError([], $e->getMessage(), microtime(true));
+
+            return;
+        }
+
         $query = $this->webhook->query_params ?? [];
         $headers = $this->webhook->headers ?? [];
 
         if (! empty($query)) {
-            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . http_build_query($query);
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?').http_build_query($query);
         }
 
         $payload = $this->buildPayload();
@@ -41,7 +55,12 @@ class SendWebhook implements ShouldQueue
         $start = microtime(true);
 
         try {
-            $request = Http::withHeaders($headers)->timeout(30)->connectTimeout(10);
+            $request = Http::withHeaders($headers)
+                ->timeout(self::TIMEOUT_SECONDS)
+                ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                ->withOptions([
+                    'allow_redirects' => false,
+                ]);
 
             $response = match ($method) {
                 'GET' => $request->get($url, $payload),
@@ -50,6 +69,12 @@ class SendWebhook implements ShouldQueue
                 'DELETE' => $request->delete($url, $payload),
                 default => $request->post($url, $payload),
             };
+
+            if ($response->redirect()) {
+                $this->logError($payload, 'Redirecionamento HTTP não permitido.', $start);
+
+                return;
+            }
 
             $this->log($payload, $response, $start);
         } catch (ConnectionException|Throwable $e) {
@@ -93,7 +118,7 @@ class SendWebhook implements ShouldQueue
 
     private function sign(array $payload): string
     {
-        return 'sha256=' . hash_hmac('sha256', json_encode($payload), $this->webhook->secret);
+        return 'sha256='.hash_hmac('sha256', json_encode($payload), $this->webhook->secret);
     }
 
     private function log(array $payload, Response $response, float $start): void
@@ -101,7 +126,7 @@ class SendWebhook implements ShouldQueue
         WebhookLog::query()->create([
             'webhook_id' => $this->webhook->id,
             'status_code' => $response->status(),
-            'response_body' => Str::limit($response->body(), 10000),
+            'response_body' => Str::limit($response->body(), 500),
             'request_payload' => $payload,
             'duration_ms' => (int) round((microtime(true) - $start) * 1000),
         ]);
@@ -112,7 +137,7 @@ class SendWebhook implements ShouldQueue
         WebhookLog::query()->create([
             'webhook_id' => $this->webhook->id,
             'request_payload' => $payload,
-            'error_message' => $message,
+            'error_message' => Str::limit($message, 500),
             'duration_ms' => (int) round((microtime(true) - $start) * 1000),
         ]);
     }

@@ -4,11 +4,11 @@ namespace App\Modules\WhatsApp\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class InternalNoteCreated implements ShouldBroadcastNow
+class InternalNoteCreated implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
