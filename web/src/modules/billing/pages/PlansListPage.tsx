@@ -141,11 +141,11 @@ export default function PlansListPage() {
 
       <ConfirmDialog
         open={Boolean(planToDeactivate)}
-        onOpenChange={(open) => !open && setPlanToDeactivate(null)}
+        onClose={() => setPlanToDeactivate(null)}
         title="Inativar plano"
         description={`O plano "${planToDeactivate?.name}" deixará de aparecer no catálogo.`}
         confirmLabel="Inativar"
-        danger
+        variant="danger"
         onConfirm={() => {
           if (!planToDeactivate) return
           deactivate.mutate(planToDeactivate.id, {

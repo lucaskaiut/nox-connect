@@ -12,7 +12,6 @@ import {
   Page,
   PageContent,
   PageHeader,
-  Pagination,
   SearchInput,
   Skeleton,
 } from '@/shared/design-system'
@@ -54,7 +53,6 @@ export default function WhatsAppInboxPage() {
     (searchParams.get('tab') as FilterTab) ?? 'all',
   )
   const debouncedSearch = useDebounce(search)
-  const page = Number(searchParams.get('page') ?? 1)
 
   const currentUser = useSessionStore((state) => state.user)
 
@@ -74,19 +72,14 @@ export default function WhatsAppInboxPage() {
   const query = useConversationsQuery(filters)
   const stats = useConversationStatsQuery()
 
-  const updateParams = (next: { page?: number; search?: string; tab?: FilterTab }) => {
+  const updateParams = (next: { search?: string; tab?: FilterTab }) => {
     setSearchParams(
       (params) => {
         if (next.search !== undefined) {
           next.search ? params.set('search', next.search) : params.delete('search')
-          params.delete('page')
         }
         if (next.tab !== undefined) {
           next.tab && next.tab !== 'all' ? params.set('tab', next.tab) : params.delete('tab')
-          params.delete('page')
-        }
-        if (next.page !== undefined) {
-          next.page > 1 ? params.set('page', String(next.page)) : params.delete('page')
         }
         return params
       },
@@ -111,14 +104,14 @@ export default function WhatsAppInboxPage() {
     { key: 'closed', label: 'Finalizadas', count: stats.data?.closed },
   ]
 
-  const conversations = query.data?.data ?? []
+  const conversations = query.data?.pages.flatMap((page) => page.data) ?? []
   const showEmpty = !query.isPending && conversations.length === 0
   const selectedCount =
     activeTab === 'closed'
       ? stats.data?.closed
       : activeTab === 'unassigned'
         ? stats.data?.unassigned
-        : query.data?.meta.total
+        : conversations.length
 
   return (
     <Page>
@@ -204,12 +197,17 @@ export default function WhatsAppInboxPage() {
           )}
         </Card>
 
-        {query.data && (
-          <Pagination
-            className="mt-4"
-            meta={query.data.meta}
-            onPageChange={(next) => updateParams({ page: next })}
-          />
+        {query.hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={query.isFetchingNextPage}
+              onClick={() => void query.fetchNextPage()}
+            >
+              Carregar mais
+            </Button>
+          </div>
         )}
       </PageContent>
     </Page>

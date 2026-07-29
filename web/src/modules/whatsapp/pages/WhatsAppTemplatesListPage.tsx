@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FileText, Plus, Trash2, X } from 'lucide-react'
+import { FileText, Plus, Trash2 } from 'lucide-react'
 import { z } from 'zod'
 import {
   Badge,
@@ -21,6 +21,7 @@ import {
   TextareaField,
   Skeleton,
   ButtonLink,
+  type SelectOption,
 } from '@/shared/design-system'
 import { Can } from '@/app/guards/PermissionGuard'
 import { Permission } from '@/shared/constants/permissions'

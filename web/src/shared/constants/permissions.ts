@@ -16,10 +16,10 @@ export const Permission = {
   API_TOKEN_READ: 'api-token.read',
   API_TOKEN_DELETE: 'api-token.delete',
 
-  // WEBHOOK_CREATE: 'webhook.create',
-  // WEBHOOK_READ: 'webhook.read',
-  // WEBHOOK_UPDATE: 'webhook.update',
-  // WEBHOOK_DELETE: 'webhook.delete',
+  WEBHOOK_CREATE: 'webhook.create',
+  WEBHOOK_READ: 'webhook.read',
+  WEBHOOK_UPDATE: 'webhook.update',
+  WEBHOOK_DELETE: 'webhook.delete',
 
   WHATSAPP_CONFIG_CREATE: 'whatsapp-config.create',
   WHATSAPP_CONFIG_READ: 'whatsapp-config.read',
@@ -94,15 +94,15 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { value: Permission.API_TOKEN_DELETE, label: 'Revogar tokens' },
     ],
   },
-  // {
-  //   label: 'Webhooks',
-  //   permissions: [
-  //     { value: Permission.WEBHOOK_READ, label: 'Visualizar webhooks' },
-  //     { value: Permission.WEBHOOK_CREATE, label: 'Criar webhooks' },
-  //     { value: Permission.WEBHOOK_UPDATE, label: 'Editar webhooks' },
-  //     { value: Permission.WEBHOOK_DELETE, label: 'Remover webhooks' },
-  //   ],
-  // },
+  {
+    label: 'Webhooks',
+    permissions: [
+      { value: Permission.WEBHOOK_READ, label: 'Visualizar webhooks' },
+      { value: Permission.WEBHOOK_CREATE, label: 'Criar webhooks' },
+      { value: Permission.WEBHOOK_UPDATE, label: 'Editar webhooks' },
+      { value: Permission.WEBHOOK_DELETE, label: 'Remover webhooks' },
+    ],
+  },
   {
     label: 'Templates de WhatsApp',
     permissions: [

@@ -572,7 +572,7 @@ export function useSeedDefaultStages() {
 
 export function useTemplatesQuery(params?: TemplateParams) {
   return useQuery({
-    queryKey: queryKeys.whatsapp.templates.list(params),
+    queryKey: queryKeys.whatsapp.templates.list(params as Record<string, unknown> | undefined),
     queryFn: () => whatsappService.listTemplates(params),
   })
 }

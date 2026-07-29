@@ -1,7 +1,6 @@
 import { Link } from 'react-router'
 import type { LucideIcon } from 'lucide-react'
 import {
-  BarChart3,
   Clock,
   FileText,
   KanbanSquare,

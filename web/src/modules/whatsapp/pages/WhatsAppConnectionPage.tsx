@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { RefreshCw, Wifi } from 'lucide-react'
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -13,14 +11,12 @@ import {
   PageContent,
   PageHeader,
   Section,
-  TextField,
 } from '@/shared/design-system'
 import { isApiError } from '@/shared/api/errors'
 import { applyApiErrorsToForm } from '@/shared/utils/forms'
 import {
   useConnectWhatsApp,
   useDisconnectWhatsApp,
-  useTestWhatsAppConnection,
   useWhatsAppConnectionQuery,
   useWebhookLogsQuery,
 } from '../hooks/useWhatsApp'
@@ -31,18 +27,10 @@ import {
   type WhatsAppMetaConnectFormValues,
 } from '../schemas/whatsapp.schema'
 
-function generateVerifyToken(): string {
-  const chars = 'abcdef0123456789'
-  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-    .map((b) => chars[b % chars.length])
-    .join('')
-}
-
 export default function WhatsAppConnectionPage() {
   const { data: connection, isPending } = useWhatsAppConnectionQuery()
   const connect = useConnectWhatsApp()
   const disconnect = useDisconnectWhatsApp()
-  const test = useTestWhatsAppConnection()
   const { data: logs } = useWebhookLogsQuery()
 
   const [message, setMessage] = useState('')

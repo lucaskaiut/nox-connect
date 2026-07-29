@@ -7,10 +7,13 @@ import type { ConnectionAdapter, ConnectionBootstrap, ConnectionResult } from '.
  * Seleciona o adapter pela estratégia retornada pelo backend (type + provider).
  */
 export class WhatsAppConnectionManager {
-  private constructor(
-    private readonly bootstrap: ConnectionBootstrap,
-    private readonly adapter: ConnectionAdapter,
-  ) {}
+  private readonly bootstrap: ConnectionBootstrap
+  private readonly adapter: ConnectionAdapter
+
+  private constructor(bootstrap: ConnectionBootstrap, adapter: ConnectionAdapter) {
+    this.bootstrap = bootstrap
+    this.adapter = adapter
+  }
 
   static create(bootstrap: ConnectionBootstrap): WhatsAppConnectionManager {
     return new WhatsAppConnectionManager(bootstrap, this.resolveAdapter(bootstrap))

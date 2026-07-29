@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router'
 import {
@@ -26,7 +26,7 @@ export default function PlanCreatePage() {
   const createPlan = useCreatePlan()
 
   const form = useForm<PlanFormValues>({
-    resolver: zodResolver(planSchema),
+    resolver: zodResolver(planSchema) as Resolver<PlanFormValues>,
     defaultValues: {
       name: '',
       description: '',

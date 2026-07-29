@@ -476,14 +476,14 @@ function ChatPanel({
         <div className="flex items-center gap-2">
           {assignedUser ? (
             <>
-              <Avatar name={assignedUser.name} size="xs" />
+              <Avatar name={assignedUser.name} size="sm" />
               <span className="text-xs text-foreground">{assignedUser.name}</span>
               <Can permission={Permission.WHATSAPP_CONVERSATION_UPDATE}>
-                <Button variant="ghost" size="xs" onClick={() => setShowTransferModal(true)} title="Transferir">
+                <Button variant="ghost" size="sm" onClick={() => setShowTransferModal(true)} title="Transferir">
                   <UserPlus className="size-3" />
                 </Button>
                 <Button
-                  variant="ghost" size="xs" onClick={handleRemoveAssignment}
+                  variant="ghost" size="sm" onClick={handleRemoveAssignment}
                   loading={removeAssignment.isPending} title="Remover responsável"
                 >
                   <UserMinus className="size-3" />
@@ -492,7 +492,7 @@ function ChatPanel({
             </>
           ) : (
             <Can permission={Permission.WHATSAPP_CONVERSATION_UPDATE}>
-              <Button variant="secondary" size="xs" onClick={handleAssign} loading={assignConversation.isPending}>
+              <Button variant="secondary" size="sm" onClick={handleAssign} loading={assignConversation.isPending}>
                 <UserPlus className="size-3" /> Assumir
               </Button>
             </Can>
@@ -511,7 +511,7 @@ function ChatPanel({
 
         <div className="flex items-center gap-1">
           <Can permission={Permission.WHATSAPP_CONVERSATION_UPDATE}>
-            <Button variant="ghost" size="xs" onClick={() => setShowTagModal(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setShowTagModal(true)}>
               <Tag className="size-3" /> Tags
             </Button>
           </Can>
@@ -523,18 +523,18 @@ function ChatPanel({
         </div>
 
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="xs" onClick={() => setShowNotes((v) => !v)}>
+          <Button variant="ghost" size="sm" onClick={() => setShowNotes((v) => !v)}>
             <MessageSquarePlus className="size-3" />
             Notas {notes.length > 0 && `(${notes.length})`}
           </Button>
           <Can permission={Permission.WHATSAPP_CONVERSATION_UPDATE}>
             {isClosed ? (
-              <Button variant="secondary" size="xs" onClick={handleReopen} loading={reopenConversation.isPending}>
+              <Button variant="secondary" size="sm" onClick={handleReopen} loading={reopenConversation.isPending}>
                 <Unlock className="size-3" /> Reabrir
               </Button>
             ) : (
               <Button
-                variant="ghost" size="xs"
+                variant="ghost" size="sm"
                 onClick={() => setShowCloseConfirm(true)}
                 className="text-warning hover:bg-warning-soft hover:text-warning"
               >
@@ -549,7 +549,7 @@ function ChatPanel({
         <div className="shrink-0 border-b border-surface-2 bg-surface p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Notas internas</h3>
-            <Button variant="ghost" size="xs" onClick={() => setShowNotes(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setShowNotes(false)}>
               <X className="size-4" />
             </Button>
           </div>
@@ -568,7 +568,7 @@ function ChatPanel({
               rows={2}
               className="min-h-0 resize-none"
             />
-            <Button size="xs" onClick={handleAddNote} loading={addNote.isPending} disabled={!noteText.trim()}>
+            <Button size="sm" onClick={handleAddNote} loading={addNote.isPending} disabled={!noteText.trim()}>
               Salvar
             </Button>
           </div>

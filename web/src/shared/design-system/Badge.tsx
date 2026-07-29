@@ -56,7 +56,7 @@ export function Badge({
   const textColor = useMemo(() => (bgColor ? contrastingColor(bgColor) : null), [bgColor])
 
   const mergedStyle = textColor
-    ? { ...style, backgroundColor: bgColor, color: textColor }
+    ? { ...style, backgroundColor: bgColor ?? undefined, color: textColor }
     : style
 
   return (

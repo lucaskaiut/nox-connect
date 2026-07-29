@@ -11,7 +11,6 @@ import {
   type SelectOption,
 } from '@/shared/design-system'
 import { useTemplatesQuery, useSendTemplate } from '../hooks/useWhatsApp'
-import type { MessageTemplate } from '@/shared/types/models'
 
 const CATEGORY_LABELS: Record<string, string> = {
   authentication: 'Autenticação',

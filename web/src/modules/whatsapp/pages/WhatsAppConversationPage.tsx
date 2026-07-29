@@ -23,9 +23,6 @@ import {
   Loading,
   Modal,
   ConfirmDialog,
-  Dropdown,
-  DropdownItem,
-  DropdownSeparator,
   Avatar,
   type SelectOption,
 } from '@/shared/design-system'
@@ -86,8 +83,6 @@ export default function WhatsAppConversationPage() {
 
   const isClosed = conversation?.status === 'closed'
   const windowOpen = conversation?.is_window_open ?? true
-  const isAssignedToMe =
-    conversation?.current_assignment?.user?.id === currentUser?.id
 
   const messages = [...(messagesQuery.data?.pages.flatMap((page) => page.data) ?? [])].reverse()
   const notes = conversation?.notes ?? []

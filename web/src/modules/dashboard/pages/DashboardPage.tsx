@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Building2, Globe, KeyRound, ShieldCheck, Users } from 'lucide-react'
+import { Building2, KeyRound, ShieldCheck, Users } from 'lucide-react'
 import { Link } from 'react-router'
 import {
   Badge,
