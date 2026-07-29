@@ -176,13 +176,21 @@ export interface WhatsAppContact {
   display_name: string | null
 }
 
+export interface WhatsAppMessageMedia {
+  url?: string | null
+  mime_type?: string | null
+  id?: string | null
+  file_length?: number | null
+  caption?: string | null
+}
+
 export interface WhatsAppMessage {
   id: number
   conversation_id: number
   direction: 'inbound' | 'outbound'
   message_type: string
   content: string | null
-  media: Record<string, unknown> | null
+  media: WhatsAppMessageMedia | null
   external_message_id: string | null
   status: string
   metadata: Record<string, unknown> | null

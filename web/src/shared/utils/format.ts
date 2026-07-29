@@ -28,7 +28,11 @@ const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
 export function formatRelative(value: string | null | undefined): string {
   if (!value) return '—'
 
-  const diff = new Date(value).getTime() - Date.now()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+
+  // diff < 0 => passado ("há …"); diff > 0 => futuro ("em …")
+  const diff = date.getTime() - Date.now()
 
   for (const [unit, ms] of RELATIVE_STEPS) {
     if (Math.abs(diff) >= ms) {

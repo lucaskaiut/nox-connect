@@ -44,53 +44,10 @@ final class DApiWebhookNormalizer implements WebhookNormalizer
         $statuses = [];
 
         if ($event === 'messages.received' && is_array($data)) {
-            $fromMe = (bool) Arr::get($data, 'fromMe', false);
+            $message = $this->normalizeReceivedMessage($data);
 
-            if (! $fromMe) {
-                $externalMessageId = Arr::get($data, 'id');
-                $fromJid = (string) Arr::get($data, 'from.jid', '');
-                $externalContactId = $this->jidToPhone($fromJid);
-
-                if (filled($externalMessageId) && filled($externalContactId)) {
-                    $type = (string) Arr::get($data, 'type', 'text');
-                    $messageType = MessageType::tryFrom($type)?->value ?? MessageType::Unknown->value;
-                    $content = Arr::get($data, 'message');
-                    $media = null;
-
-                    if (in_array($messageType, [
-                        MessageType::Image->value,
-                        MessageType::Video->value,
-                        MessageType::Audio->value,
-                        MessageType::Document->value,
-                    ], true)) {
-                        $media = [
-                            'url' => Arr::get($data, 'media_url') ?? Arr::get($data, 'media_data.url'),
-                            'mime_type' => Arr::get($data, 'media_data.mimetype'),
-                        ];
-                    }
-
-                    $receivedAt = now();
-                    $ts = Arr::get($data, 'timestamp');
-
-                    if (is_numeric($ts)) {
-                        $ts = (int) $ts;
-                        // D-API/WhatsApp enviam Unix em segundos (~1e9). ms seria ~1e12.
-                        $receivedAt = $ts > 1_000_000_000_000
-                            ? Carbon::createFromTimestampMs($ts)
-                            : Carbon::createFromTimestamp($ts);
-                    }
-
-                    $messages[] = new IncomingMessageDTO(
-                        externalMessageId: (string) $externalMessageId,
-                        externalContactId: $externalContactId,
-                        messageType: $messageType,
-                        content: is_string($content) ? $content : null,
-                        media: $media,
-                        profileName: Arr::get($data, 'from_name') ?? Arr::get($data, 'from.name'),
-                        receivedAt: $receivedAt,
-                        raw: $data,
-                    );
-                }
+            if ($message !== null) {
+                $messages[] = $message;
             }
         }
 
@@ -119,6 +76,95 @@ final class DApiWebhookNormalizer implements WebhookNormalizer
             statuses: $statuses,
             raw: $payload,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function normalizeReceivedMessage(array $data): ?IncomingMessageDTO
+    {
+        $fromMe = (bool) Arr::get($data, 'fromMe', false);
+        $externalMessageId = Arr::get($data, 'id');
+
+        // Inbound: contato = from. Outbound (echo/coexistência): contato = to.
+        $contactJid = $fromMe
+            ? (string) Arr::get($data, 'to.jid', '')
+            : (string) Arr::get($data, 'from.jid', '');
+        $externalContactId = $this->jidToPhone($contactJid);
+
+        if (! filled($externalMessageId) || ! filled($externalContactId)) {
+            return null;
+        }
+
+        $type = (string) Arr::get($data, 'type', 'text');
+        $messageType = MessageType::tryFrom($type)?->value ?? MessageType::Unknown->value;
+        $content = Arr::get($data, 'message');
+        $media = $this->extractMedia($data, $messageType);
+
+        return new IncomingMessageDTO(
+            externalMessageId: (string) $externalMessageId,
+            externalContactId: $externalContactId,
+            messageType: $messageType,
+            content: is_string($content) ? $content : null,
+            media: $media,
+            profileName: $fromMe
+                ? null
+                : (Arr::get($data, 'from_name') ?? Arr::get($data, 'from.name')),
+            receivedAt: $this->resolveReceivedAt($data),
+            direction: $fromMe ? 'outbound' : 'inbound',
+            raw: $data,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{url?: string|null, mime_type?: string|null, file_length?: int|null}|null
+     */
+    private function extractMedia(array $data, string $messageType): ?array
+    {
+        if (! in_array($messageType, [
+            MessageType::Image->value,
+            MessageType::Video->value,
+            MessageType::Audio->value,
+            MessageType::Document->value,
+        ], true)) {
+            return null;
+        }
+
+        $url = Arr::get($data, 'media_url') ?? Arr::get($data, 'media_data.url');
+        $mimeType = Arr::get($data, 'media_data.mimetype');
+        $fileLength = Arr::get($data, 'media_data.file_length');
+
+        if (! filled($url) && ! filled($mimeType)) {
+            return null;
+        }
+
+        return array_filter([
+            'url' => is_string($url) ? $url : null,
+            'mime_type' => is_string($mimeType) ? $mimeType : null,
+            'file_length' => is_numeric($fileLength) ? (int) $fileLength : null,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveReceivedAt(array $data): Carbon
+    {
+        $ts = Arr::get($data, 'timestamp');
+
+        if (! is_numeric($ts)) {
+            return now();
+        }
+
+        $ts = (int) $ts;
+        $timezone = (string) config('app.timezone', 'UTC');
+
+        // Unix epoch é absoluto; materializa no timezone do app para o Eloquent
+        // não gravar o relógio UTC e reler como horário local (vira "futuro").
+        return $ts > 1_000_000_000_000
+            ? Carbon::createFromTimestampMs($ts, $timezone)
+            : Carbon::createFromTimestamp($ts, $timezone);
     }
 
     private function jidToPhone(string $jid): string

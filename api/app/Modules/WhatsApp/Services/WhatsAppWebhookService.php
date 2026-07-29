@@ -13,6 +13,7 @@ use App\Modules\WhatsApp\Enums\MessageType;
 use App\Modules\WhatsApp\Events\MessageDelivered;
 use App\Modules\WhatsApp\Events\MessageRead;
 use App\Modules\WhatsApp\Events\MessageReceived;
+use App\Modules\WhatsApp\Events\MessageSent;
 use App\Modules\WhatsApp\Models\KanbanStage;
 use App\Modules\WhatsApp\Models\WhatsAppContact;
 use App\Modules\WhatsApp\Models\WhatsAppConversation;
@@ -41,6 +42,7 @@ class WhatsAppWebhookService
         $messageDate = $incoming->receivedAt instanceof \DateTimeInterface
             ? Carbon::parse($incoming->receivedAt)
             : now();
+        $isInbound = $incoming->direction !== MessageDirection::Outbound->value;
 
         $storedMessage = WhatsAppMessage::query()
             ->forTenant($tenant)
@@ -51,28 +53,45 @@ class WhatsAppWebhookService
                 ],
                 [
                     'conversation_id' => $conversation->id,
-                    'direction' => MessageDirection::Inbound->value,
+                    'direction' => $isInbound
+                        ? MessageDirection::Inbound->value
+                        : MessageDirection::Outbound->value,
                     'message_type' => $messageType->value,
                     'content' => $incoming->content,
                     'media' => $incoming->media,
-                    'status' => MessageStatus::Received->value,
+                    'status' => $isInbound
+                        ? MessageStatus::Received->value
+                        : MessageStatus::Sent->value,
                 ]
             );
 
-        $conversation->update([
+        $conversationUpdates = [
             'last_message_preview' => $this->buildPreview($messageType, $incoming->content),
             'last_message_at' => $messageDate,
-            'last_customer_message_at' => $messageDate,
-            'window_expires_at' => $messageDate->copy()->addHours(24),
-            'is_unread' => true,
             'status' => ConversationStatus::Open->value,
-        ]);
+        ];
 
-        broadcast(new MessageReceived(
-            (string) $tenant->uuid,
-            $conversation->id,
-            $storedMessage->toArray(),
-        ));
+        if ($isInbound) {
+            $conversationUpdates['last_customer_message_at'] = $messageDate;
+            $conversationUpdates['window_expires_at'] = $messageDate->copy()->addHours(24);
+            $conversationUpdates['is_unread'] = true;
+        }
+
+        $conversation->update($conversationUpdates);
+
+        if ($isInbound) {
+            broadcast(new MessageReceived(
+                (string) $tenant->uuid,
+                $conversation->id,
+                $storedMessage->toArray(),
+            ));
+        } else {
+            broadcast(new MessageSent(
+                (string) $tenant->uuid,
+                $conversation->id,
+                $storedMessage->toArray(),
+            ));
+        }
     }
 
     private function processStatusUpdate(Tenant $tenant, MessageStatusUpdateDTO $status): void

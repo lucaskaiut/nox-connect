@@ -11,6 +11,7 @@ import {
   Music,
   Plus,
   RotateCcw,
+  X,
 } from 'lucide-react'
 import {
   Button,
@@ -68,6 +69,150 @@ export function MediaPlaceholder({ type }: { type: string }) {
   }
 }
 
+function mediaUrl(message: WhatsAppMessage): string | null {
+  const url = message.media?.url
+  return typeof url === 'string' && url.length > 0 ? url : null
+}
+
+function ImagePreview({
+  src,
+  caption,
+  isOutbound,
+}: {
+  src: string
+  caption?: string | null
+  isOutbound: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="block overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <img
+          src={src}
+          alt={caption || 'Imagem'}
+          loading="lazy"
+          className="max-h-72 max-w-full cursor-zoom-in rounded-xl object-cover"
+        />
+      </button>
+      {caption ? (
+        <p className={cn('mt-2 whitespace-pre-wrap break-words', isOutbound && 'text-primary-foreground')}>
+          {caption}
+        </p>
+      ) : null}
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pré-visualização da imagem"
+          onClick={() => setOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="absolute right-4 top-4 rounded-full bg-surface/90 p-2 text-foreground shadow-raised"
+            aria-label="Fechar"
+          >
+            <X className="size-5" />
+          </button>
+          <img
+            src={src}
+            alt={caption || 'Imagem'}
+            className="max-h-[90vh] max-w-[min(960px,100%)] rounded-lg object-contain shadow-pop"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
+function AudioPlayer({ src }: { src: string }) {
+  return (
+    <div className="min-w-[220px] max-w-full">
+      <audio controls preload="metadata" src={src} className="h-10 w-full max-w-[280px]">
+        Seu navegador não suporta áudio.
+      </audio>
+    </div>
+  )
+}
+
+function MessageBody({
+  message,
+  isOutbound,
+}: {
+  message: WhatsAppMessage
+  isOutbound: boolean
+}) {
+  const url = mediaUrl(message)
+  const caption = message.content
+
+  if (message.message_type === 'image' && url) {
+    return <ImagePreview src={url} caption={caption} isOutbound={isOutbound} />
+  }
+
+  if (message.message_type === 'audio' && url) {
+    return (
+      <div className="space-y-2">
+        <AudioPlayer src={url} />
+        {caption ? <p className="whitespace-pre-wrap break-words">{caption}</p> : null}
+      </div>
+    )
+  }
+
+  if (message.message_type === 'video' && url) {
+    return (
+      <div className="space-y-2">
+        <video controls preload="metadata" src={url} className="max-h-72 max-w-full rounded-xl">
+          Seu navegador não suporta vídeo.
+        </video>
+        {caption ? <p className="whitespace-pre-wrap break-words">{caption}</p> : null}
+      </div>
+    )
+  }
+
+  if (message.message_type === 'document' && url) {
+    return (
+      <div className="space-y-2">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'inline-flex items-center gap-1.5 text-sm underline underline-offset-2',
+            isOutbound ? 'text-primary-foreground' : 'text-primary',
+          )}
+        >
+          <FileText className="size-4" />
+          Abrir documento
+        </a>
+        {caption ? <p className="whitespace-pre-wrap break-words">{caption}</p> : null}
+      </div>
+    )
+  }
+
+  if (message.message_type !== 'text') {
+    return (
+      <div className="space-y-2">
+        <MediaPlaceholder type={message.message_type} />
+        {caption ? <p className="whitespace-pre-wrap break-words">{caption}</p> : null}
+      </div>
+    )
+  }
+
+  if (caption) {
+    return <p className="whitespace-pre-wrap break-words">{caption}</p>
+  }
+
+  return <MediaPlaceholder type={message.message_type || 'unknown'} />
+}
+
 export function MessageBubble({
   message,
   isOutbound,
@@ -99,11 +244,7 @@ export function MessageBubble({
             {message.sender_name}
           </span>
         )}
-        {message.message_type !== 'text' || !message.content ? (
-          <MediaPlaceholder type={message.message_type} />
-        ) : (
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        )}
+        <MessageBody message={message} isOutbound={isOutbound} />
         <div
           className={cn(
             'mt-1 flex items-center justify-end gap-0.5 text-[11px]',
